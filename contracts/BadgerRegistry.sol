@@ -111,16 +111,18 @@ contract BadgerRegistry {
 
   /// Anyone can add a vault to here, it will be indexed by their address
   function add(address vault) public {
-    vaults[msg.sender].add(vault);
-    
-    emit NewVault(msg.sender, vault);
+    bool added = vaults[msg.sender].add(vault);
+    if (added) { 
+      emit NewVault(msg.sender, vault);
+    }
   }
 
   /// Remove the vault from your index
   function remove(address vault) public {
-    vaults[msg.sender].remove(vault);
-
-    emit RemoveVault(msg.sender, vault);
+    bool removed = vaults[msg.sender].remove(vault);
+    if (removed) { 
+      emit RemoveVault(msg.sender, vault); 
+     }
   }
 
   //@dev Retrieve a list of all Vault Addresses from the given author
