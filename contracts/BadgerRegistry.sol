@@ -100,9 +100,9 @@ contract BadgerRegistry {
 
     address pendingGovernance; // If this is non zero, this is an attack from the deployer
     address governance;
+    address rewards;
     address guardian;
     address management;
-    address rewards;
 
     StratInfo[] strategies;
   }
