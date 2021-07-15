@@ -1,10 +1,6 @@
-from pathlib import Path
-import yaml
 import click
 
-from brownie import Token, Vault, AdminUpgradeabilityProxy, accounts, network, web3
-from eth_utils import is_checksum_address
-from semantic_version import Version
+from brownie import accounts, network
 
 def connect_account():
     click.echo(f"You are using the '{network.show_active()}' network")
