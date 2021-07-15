@@ -248,3 +248,14 @@ Vault Upgradeable Proxy - wBTC/ibBTC SLP Vault
 
 Vault Logic
 0xdbf515d03240acb3c0f7776782a7863b892af709
+
+## TODO:
+Rewrite Specification
+Decide how to deal with health factor
+Chart out "expected" flow to set up
+Write Docs for Deploying
+Write Docs for Registry
+
+Deploy Registry Multichain
+
+Figure out how to reuse Upgradeable Logic to avoid re-deploying both logic and implementation everytime

@@ -1,3 +1,7 @@
+"""
+Note: This script should not be used in badger-vaults
+It should be used in badger-vaults-mix-v2
+"""
 from pathlib import Path
 from scripts.connect_account import connect_account
 from scripts.deploy.deploy_badger_vault import deploy_vault
