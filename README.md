@@ -243,5 +243,8 @@ Polygon Registry
 Vault Upgradeable Proxy - wBTC Vault
 0xc2bc53BCD33cF43124715038315e11F2577fbd4E
 
+Vault Upgradeable Proxy - wBTC/ibBTC SLP Vault
+0x073611461A526bc7CC90C6d16927C8032BbA8D3C
+
 Vault Logic
 0xdbf515d03240acb3c0f7776782a7863b892af709
