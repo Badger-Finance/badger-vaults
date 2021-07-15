@@ -55,7 +55,7 @@ contract BadgerRegistry {
 
 
   //@dev Multisig. Vaults from here are considered Production ready
-  address immutable governance;
+  address public governance;
 
   //@dev Given an Author Address, and Token, Return the Vault
   mapping(address => EnumerableSet.AddressSet) private vaults;
