@@ -1,6 +1,6 @@
 from pathlib import Path
 from scripts.connect_account import connect_account
-from scripts.deploy_badger_vault import deploy_vault
+from scripts.deploy.deploy_badger_vault import deploy_vault
 import yaml
 import click
 

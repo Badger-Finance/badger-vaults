@@ -1,7 +1,4 @@
-from pathlib import Path
 from scripts.connect_account import connect_account
-import yaml
-import click
 
 from brownie import BadgerRegistry
 

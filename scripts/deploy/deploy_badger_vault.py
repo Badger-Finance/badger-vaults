@@ -3,9 +3,8 @@ from scripts.connect_account import connect_account
 import yaml
 import click
 
-from brownie import Token, Vault, AdminUpgradeabilityProxy, accounts, network, web3
+from brownie import Token, Vault, AdminUpgradeabilityProxy, web3
 from eth_utils import is_checksum_address
-from semantic_version import Version
 
 
 DEFAULT_VAULT_NAME = lambda token: f"Badger Sett {token.symbol()}"
