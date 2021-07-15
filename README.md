@@ -1,4 +1,4 @@
-# Badger Vaults - Fork of Yearn V4.2.1
+# Badger Vaults - Fork of Yearn V4.3.0 - 
 
 Please read and be familiar with the [Specification](SPECIFICATION.md).
 

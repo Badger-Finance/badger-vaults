@@ -1,10 +1,10 @@
 from pathlib import Path
 from scripts.connect_account import connect_account
+from scripts.get_address import get_address
 import yaml
 import click
 
 from brownie import Token, Vault, AdminUpgradeabilityProxy, web3
-from eth_utils import is_checksum_address
 
 
 DEFAULT_VAULT_NAME = lambda token: f"Badger Sett {token.symbol()}"
@@ -23,24 +23,6 @@ defaults = { # TODO: Use Badger on-chain Registry for all versions & defaults
     'proxyAdmin': web3.toChecksumAddress("0xB10b3Af646Afadd9C62D663dd5d226B15C25CdFA"),
     'vaultLogic': web3.toChecksumAddress("0x0000000000000000000000000000000000000000")
 }
-
-def get_address(msg: str, default: str = None) -> str:
-    val = click.prompt(msg, default=default)
-
-    # Keep asking user for click.prompt until it passes
-    while True:
-
-        if is_checksum_address(val):
-            return val
-        elif addr := web3.ens.address(val):
-            click.echo(f"Found ENS '{val}' [{addr}]")
-            return addr
-
-        click.echo(
-            f"I'm sorry, but '{val}' is not a checksummed address or valid ENS record"
-        )
-        # NOTE: Only display default once
-        val = click.prompt(msg)
 
 def deploy_vault(dev):
     click.echo(

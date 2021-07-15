@@ -4,12 +4,13 @@ It should be used in badger-vaults-mix-v2
 """
 from pathlib import Path
 from scripts.connect_account import connect_account
+from scripts.get_address import get_address
+
 from scripts.deploy.deploy_badger_vault import deploy_vault
 import yaml
 import click
 
 from brownie import TestStrategyUpgradeable, AdminUpgradeabilityProxy, web3, Vault
-from eth_utils import is_checksum_address
 
 PACKAGE_VERSION = yaml.safe_load(
     (Path(__file__).parent.parent / "ethpm-config.yaml").read_text()
@@ -22,25 +23,6 @@ defaults = {  # TODO: Use Badger on-chain Registry for all versions & defaults
     'rewards': web3.toChecksumAddress("0xB65cef03b9B89f99517643226d76e286ee999e77"),
     'keeper': web3.toChecksumAddress("0xB65cef03b9B89f99517643226d76e286ee999e77"),
 }
-
-
-def get_address(msg: str, default: str = None) -> str:
-    val = click.prompt(msg, default=default)
-
-    # Keep asking user for click.prompt until it passes
-    while True:
-
-        if is_checksum_address(val):
-            return val
-        elif addr := web3.ens.address(val):
-            click.echo(f"Found ENS '{val}' [{addr}]")
-            return addr
-
-        click.echo(
-            f"I'm sorry, but '{val}' is not a checksummed address or valid ENS record"
-        )
-        # NOTE: Only display default once
-        val = click.prompt(msg)
 
 def deploy_strategy_logic(logic):
     """
