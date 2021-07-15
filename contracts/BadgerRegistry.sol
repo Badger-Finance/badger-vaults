@@ -107,7 +107,7 @@ contract BadgerRegistry {
     StratInfo[] strategies;
   }
 
-  constructor(address _governance) {
+  constructor (address _governance) public {
     governance = _governance;
   }
 
