@@ -25,8 +25,8 @@ def test_vault_deployment(guardian, gov, rewards, token, Vault):
         token,
         gov,
         rewards,
-        token.symbol() + " yVault",
-        "yv" + token.symbol(),
+        "",
+        "",
         guardian,
     )
     # Addresses
@@ -36,8 +36,8 @@ def test_vault_deployment(guardian, gov, rewards, token, Vault):
     assert vault.rewards() == rewards
     assert vault.token() == token
     # UI Stuff
-    assert vault.name() == token.symbol() + " yVault"
-    assert vault.symbol() == "yv" + token.symbol()
+    assert vault.name() == "Badger Sett " + token.symbol()
+    assert vault.symbol() == "b" + token.symbol()
     assert vault.decimals() == token.decimals()
     assert vault.apiVersion() == PACKAGE_VERSION
 
@@ -53,18 +53,18 @@ def test_vault_deployment(guardian, gov, rewards, token, Vault):
 def test_vault_name_symbol_override(guardian, gov, rewards, token, Vault):
     # Deploy the Vault with name/symbol overrides
     vault = guardian.deploy(Vault)
-    vault.initialize(token, gov, rewards, "crvY yVault", "yvcrvY", guardian)
+    vault.initialize(token, gov, rewards, "Badger Sett TEST", "bTEST", guardian)
     # Assert that the overrides worked
-    assert vault.name() == "crvY yVault"
-    assert vault.symbol() == "yvcrvY"
+    assert vault.name() == "Badger Sett TEST"
+    assert vault.symbol() == "bTEST"
 
 
 def test_vault_reinitialization(guardian, gov, rewards, token, Vault):
     vault = guardian.deploy(Vault)
-    vault.initialize(token, gov, rewards, "crvY yVault", "yvcrvY", guardian)
+    vault.initialize(token, gov, rewards, "Badger Sett TEST", "bTEST", guardian)
     # Can't reinitialize a vault
     with brownie.reverts():
-        vault.initialize(token, gov, rewards, "crvY yVault", "yvcrvY", guardian)
+        vault.initialize(token, gov, rewards, "Badger Sett TEST", "bTEST", guardian)
 
 
 @pytest.mark.parametrize(
