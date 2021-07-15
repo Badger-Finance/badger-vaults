@@ -118,4 +118,4 @@ def rando(accounts):
 
 @pytest.fixture
 def badgerRegistry(gov, BadgerRegistry):
-    yield gov.deploy(BadgerRegistry)
+    yield gov.deploy(BadgerRegistry, gov)
