@@ -287,7 +287,7 @@ abstract contract BaseStrategy {
 
     // modifiers
     function _onlyAuthorized() internal {
-        require(msg.sender == strategist || msg.sender == governance(), "!authorized");
+        require(msg.sender == strategist || msg.sender == governance());
     }
 
     function _onlyEmergencyAuthorized() internal {
@@ -295,7 +295,7 @@ abstract contract BaseStrategy {
     }
 
     function _onlyStrategist() internal {
-        require(msg.sender == strategist, "!strategist");
+        require(msg.sender == strategist);
     }
 
     function _onlyGovernance() internal {
@@ -313,7 +313,7 @@ abstract contract BaseStrategy {
     }
 
     modifier onlyVaultManagers() {
-        require(msg.sender == vault.management() || msg.sender == governance(), "!authorized");
+        require(msg.sender == vault.management() || msg.sender == governance());
         _;
     }
 
