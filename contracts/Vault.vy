@@ -58,9 +58,6 @@ interface Strategy:
     def migrate(_newStrategy: address): nonpayable
 
 
-interface CustomHealthCheck:
-    def check(profit: uint256, loss: uint256, callerStrategy: address) -> bool: view
-
 
 event Transfer:
     sender: indexed(address)
@@ -1428,21 +1425,6 @@ def setStrategySetLimitRatio(strategy: address, _lossRatioLimit: uint256, _profi
     self.strategies[strategy].lossLimitRatio = _lossRatioLimit
     self.strategies[strategy].profitLimitRatio = _profitLimitRatio
 
-@external
-def setStrategyCustomCheck(strategy: address, _customCheck: address):
-    """
-    @notice
-        Change the custom strategy, default value is 0x0, when set to a non
-        null address, the vault will check the strategy health using this address.
-        If set to 0x0 it will use default checks.
-    @param strategy The Strategy to update.
-    @param _customCheck The contract that should perform the check, can be set to 0x0.
-    """
-    assert msg.sender in [self.management, self.governance]
-    if _customCheck != ZERO_ADDRESS:
-        assert(CustomHealthCheck(_customCheck).check(0, 0, strategy)) #dev: can't call check
-    self.strategies[strategy].customCheck = _customCheck
-
 @internal
 def _revokeStrategy(strategy: address):
     self.debtRatio -= self.strategies[strategy].debtRatio
@@ -1830,23 +1812,9 @@ def report(gain: uint256, loss: uint256, _debtPayment: uint256) -> uint256:
     # No lying about total available to withdraw!
     assert self.token.balanceOf(msg.sender) >= gain + _debtPayment
 
-    # Check report is within healty ranges
-
-    if self.strategies[msg.sender].enforceChangeLimit:
-        if self.strategies[msg.sender].customCheck != ZERO_ADDRESS:
-            assert(CustomHealthCheck(self.strategies[msg.sender].customCheck).check(gain, loss, msg.sender)) #dev: custom check
-        else:
-            totalDebt: uint256 = self.strategies[msg.sender].totalDebt
-
-            assert(gain <= ((totalDebt * self.strategies[msg.sender].profitLimitRatio) / MAX_BPS)) # dev: gain too high
-            assert(loss <= ((totalDebt * self.strategies[msg.sender].lossLimitRatio) / MAX_BPS)) # dev: loss too high
-    else:
-        self.strategies[msg.sender].enforceChangeLimit = True # The check is turned off only once and turned back on.
-
     # We have a loss to report, do it before the rest of the calculations
     if loss > 0:
         self._reportLoss(msg.sender, loss)
-
 
     # Assess both management fee and performance fee, and issue both as shares of the vault
     totalFees: uint256 = self._assessFees(msg.sender, gain)
@@ -1891,7 +1859,7 @@ def report(gain: uint256, loss: uint256, _debtPayment: uint256) -> uint256:
     # Profit is locked and gradually released per block
     # NOTE: compute current locked profit and replace with sum of current and new
     lockedProfitBeforeLoss: uint256 = self._calculateLockedProfit() + gain - totalFees
-    if lockedProfitBeforeLoss > loss:
+    if lockedProfitBeforeLoss > loss: 
         self.lockedProfit = lockedProfitBeforeLoss - loss
     else:
         self.lockedProfit = 0
@@ -1919,6 +1887,7 @@ def report(gain: uint256, loss: uint256, _debtPayment: uint256) -> uint256:
     else:
         # Otherwise, just return what we have as debt outstanding
         return debt
+
 
 @external
 def sweep(token: address, amount: uint256 = MAX_UINT256):
