@@ -55,7 +55,7 @@ contract BadgerRegistry {
 
 
   //@dev Multisig. Vaults from here are considered Production ready
-  address GOVERNANCE = 0xB65cef03b9B89f99517643226d76e286ee999e77;
+  address immutable governance;
 
   //@dev Given an Author Address, and Token, Return the Vault
   mapping(address => EnumerableSet.AddressSet) private vaults;
@@ -107,6 +107,14 @@ contract BadgerRegistry {
     StratInfo[] strategies;
   }
 
+  constructor(address _governance) {
+    governance = _governance;
+  }
+
+  function setGovernance(address _newGov) public {
+    require(msg.sender == governance, "!gov");
+    governance = _newGov;
+  }
 
 
   /// Anyone can add a vault to here, it will be indexed by their address
@@ -229,7 +237,7 @@ contract BadgerRegistry {
   //@dev Promote a vault to Production
   //@dev Promote just means indexed by the Governance Address
   function promote(address vault) public {
-    require(msg.sender == GOVERNANCE, "!gov");
+    require(msg.sender == governance, "!gov");
     bool promoted = vaults[msg.sender].add(vault);
 
     if (promoted) { 
