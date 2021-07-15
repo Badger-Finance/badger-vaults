@@ -7,7 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/math/Math.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 
-import {VaultAPI} from "./BaseStrategyUpgradeable.sol";
+import {VaultAPI} from "./BaseStrategy.sol";
 
 interface RegistryAPI {
     function governance() external view returns (address);

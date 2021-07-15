@@ -116,11 +116,6 @@ def just_strategy(vault, strategist, TestStrategy):
 def rando(accounts):
     yield accounts[9]
 
-
-@pytest.fixture
-def registry(gov, Registry):
-    yield gov.deploy(Registry)
-
 @pytest.fixture
 def badgerRegistry(gov, BadgerRegistry):
     yield gov.deploy(BadgerRegistry)

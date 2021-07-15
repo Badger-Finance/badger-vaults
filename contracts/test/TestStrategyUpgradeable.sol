@@ -3,14 +3,15 @@ pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {BaseStrategyUpgradeable, StrategyParams, VaultAPI} from "../BaseStrategyUpgradeable.sol";
+import {BaseStrategy, StrategyParams, VaultAPI} from "../BaseStrategy.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 /*
  * This Strategy serves as both a mock Strategy for testing, and an example
  * for integrators on how to use BaseStrategy
  */
 
-contract TestStrategyUpgradeable is BaseStrategyUpgradeable {
+contract TestStrategyUpgradeable is BaseStrategy {
     bool public doReentrancy;
     bool public delegateEverything;
 
@@ -38,7 +39,7 @@ contract TestStrategyUpgradeable is BaseStrategyUpgradeable {
 
     // NOTE: This is a test-only function to simulate losses
     function _takeFunds(uint256 amount) public {
-        want.safeTransfer(msg.sender, amount);
+        SafeERC20.safeTransfer(want, msg.sender, amount);
     }
 
     // NOTE: This is a test-only function to enable reentrancy on withdraw

@@ -3,14 +3,15 @@ pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {BaseStrategyUpgradeable, StrategyParams, VaultAPI} from "../BaseStrategyUpgradeable.sol";
+import {BaseStrategy, StrategyParams, VaultAPI} from "../BaseStrategy.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 /*
  * This Strategy serves as both a mock Strategy for testing, and an example
  * for integrators on how to use BaseStrategy
  */
 
-contract TestStrategy is BaseStrategyUpgradeable {
+contract TestStrategy is BaseStrategy {
     bool public doReentrancy;
     bool public delegateEverything;
 
@@ -18,6 +19,15 @@ contract TestStrategy is BaseStrategyUpgradeable {
     // Initialize this to some fake address, because we're just using it
     // to test `BaseStrategy.protectedTokens()`
     address public constant protectedToken = address(0xbad);
+
+    function initialize(
+        address _vault,
+        address _strategist,
+        address _rewards,
+        address _keeper
+    ) external {
+        BaseStrategy._initialize(_vault, _strategist, _rewards, _keeper);
+    }
 
     function name() external view override returns (string memory) {
         return string(abi.encodePacked("TestStrategy ", apiVersion()));
@@ -38,7 +48,7 @@ contract TestStrategy is BaseStrategyUpgradeable {
 
     // NOTE: This is a test-only function to simulate losses
     function _takeFunds(uint256 amount) public {
-        want.safeTransfer(msg.sender, amount);
+        SafeERC20.safeTransfer(want, msg.sender, amount);
     }
 
     // NOTE: This is a test-only function to enable reentrancy on withdraw

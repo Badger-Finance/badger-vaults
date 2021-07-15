@@ -2,9 +2,9 @@
 pragma solidity >=0.6.0 <0.7.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 
 struct StrategyParams {
     uint256 performanceFee;
@@ -89,7 +89,7 @@ interface VaultAPI is IERC20 {
     /**
      * This is the main contact point where the Strategy interacts with the
      * Vault. It is critical that this call is handled as intended by the
-     * Strategy. Therefore, this function will be called by BaseStrategyUpgradeable to
+     * Strategy. Therefore, this function will be called by BaseStrategy to
      * make sure the integration is correct.
      */
     function report(
@@ -163,11 +163,21 @@ interface StrategyAPI {
     event Harvested(uint256 profit, uint256 loss, uint256 debtPayment, uint256 debtOutstanding);
 }
 
+interface HealthCheck {
+    function check(
+        uint256 profit,
+        uint256 loss,
+        uint256 debtPayment,
+        uint256 debtOutstanding,
+        uint256 totalDebt
+    ) external view returns (bool);
+}
+
 /**
  * @title Yearn Base Strategy
  * @author yearn.finance
  * @notice
- *  BaseStrategyUpgradeable implements all of the required functionality to interoperate
+ *  BaseStrategy implements all of the required functionality to interoperate
  *  closely with the Vault contract. This contract should be inherited and the
  *  abstract methods implemented to adapt the Strategy to the particular needs
  *  it has to create a return.
@@ -180,10 +190,13 @@ interface StrategyAPI {
  *  `harvest()`, and `harvestTrigger()` for further details.
  */
 
-abstract contract BaseStrategyUpgradeable {
+abstract contract BaseStrategy {
     using SafeMath for uint256;
-    using SafeERC20 for IERC20;
     string public metadataURI;
+
+    // health checks
+    bool public doHealthCheck;
+    address public healthCheck;
 
     /**
      * @notice
@@ -273,38 +286,34 @@ abstract contract BaseStrategyUpgradeable {
     bool public emergencyExit;
 
     // modifiers
-    modifier onlyAuthorized() {
+    function _onlyAuthorized() internal {
         require(msg.sender == strategist || msg.sender == governance(), "!authorized");
-        _;
     }
 
-    modifier onlyEmergencyAuthorized() {
-        require(
-            msg.sender == strategist || msg.sender == governance() || msg.sender == vault.guardian() || msg.sender == vault.management(),
-            "!authorized"
-        );
-        _;
+    function _onlyEmergencyAuthorized() internal {
+        require(msg.sender == strategist || msg.sender == governance() || msg.sender == vault.guardian() || msg.sender == vault.management());
     }
 
-    modifier onlyStrategist() {
+    function _onlyStrategist() internal {
         require(msg.sender == strategist, "!strategist");
-        _;
     }
 
-    modifier onlyGovernance() {
-        require(msg.sender == governance(), "!authorized");
-        _;
+    function _onlyGovernance() internal {
+        require(msg.sender == governance());
     }
 
-    modifier onlyKeepers() {
+    function _onlyKeepers() internal {
         require(
             msg.sender == keeper ||
                 msg.sender == strategist ||
                 msg.sender == governance() ||
                 msg.sender == vault.guardian() ||
-                msg.sender == vault.management(),
-            "!authorized"
+                msg.sender == vault.management()
         );
+    }
+
+    modifier onlyVaultManagers() {
+        require(msg.sender == vault.management() || msg.sender == governance(), "!authorized");
         _;
     }
 
@@ -320,19 +329,17 @@ abstract contract BaseStrategyUpgradeable {
      * @param _keeper The adddress of the _keeper. _keeper
      * can harvest and tend a strategy.
      */
-
-    
-    function initialize(
+    function _initialize(
         address _vault,
         address _strategist,
         address _rewards,
         address _keeper
-    ) public {
+    ) internal {
         require(address(want) == address(0), "Strategy already initialized");
 
         vault = VaultAPI(_vault);
         want = IERC20(vault.token());
-        want.safeApprove(_vault, uint256(-1)); // Give Vault unlimited access (might save gas)
+        SafeERC20.safeApprove(want, _vault, uint256(-1)); // Give Vault unlimited access (might save gas)
         strategist = _strategist;
         rewards = _rewards;
         keeper = _keeper;
@@ -346,6 +353,14 @@ abstract contract BaseStrategyUpgradeable {
         vault.approve(rewards, uint256(-1)); // Allow rewards to be pulled
     }
 
+    function setHealthCheck(address _healthCheck) external onlyVaultManagers {
+        healthCheck = _healthCheck;
+    }
+
+    function setDoHealthCheck(bool _doHealthCheck) external onlyVaultManagers {
+        doHealthCheck = _doHealthCheck;
+    }
+
     /**
      * @notice
      *  Used to change `strategist`.
@@ -353,7 +368,8 @@ abstract contract BaseStrategyUpgradeable {
      *  This may only be called by governance or the existing strategist.
      * @param _strategist The new address to assign as `strategist`.
      */
-    function setStrategist(address _strategist) external onlyAuthorized {
+    function setStrategist(address _strategist) external {
+        _onlyAuthorized();
         require(_strategist != address(0));
         strategist = _strategist;
         emit UpdatedStrategist(_strategist);
@@ -372,7 +388,8 @@ abstract contract BaseStrategyUpgradeable {
      *  This may only be called by governance or the strategist.
      * @param _keeper The new address to assign as `keeper`.
      */
-    function setKeeper(address _keeper) external onlyAuthorized {
+    function setKeeper(address _keeper) external {
+        _onlyAuthorized();
         require(_keeper != address(0));
         keeper = _keeper;
         emit UpdatedKeeper(_keeper);
@@ -386,7 +403,8 @@ abstract contract BaseStrategyUpgradeable {
      *  This may only be called by the strategist.
      * @param _rewards The address to use for pulling rewards.
      */
-    function setRewards(address _rewards) external onlyStrategist {
+    function setRewards(address _rewards) external {
+        _onlyStrategist();
         require(_rewards != address(0));
         vault.approve(rewards, 0);
         rewards = _rewards;
@@ -406,7 +424,8 @@ abstract contract BaseStrategyUpgradeable {
      *  This may only be called by governance or the strategist.
      * @param _delay The minimum number of seconds to wait between harvests.
      */
-    function setMinReportDelay(uint256 _delay) external onlyAuthorized {
+    function setMinReportDelay(uint256 _delay) external {
+        _onlyAuthorized();
         minReportDelay = _delay;
         emit UpdatedMinReportDelay(_delay);
     }
@@ -423,7 +442,8 @@ abstract contract BaseStrategyUpgradeable {
      *  This may only be called by governance or the strategist.
      * @param _delay The maximum number of seconds to wait between harvests.
      */
-    function setMaxReportDelay(uint256 _delay) external onlyAuthorized {
+    function setMaxReportDelay(uint256 _delay) external {
+        _onlyAuthorized();
         maxReportDelay = _delay;
         emit UpdatedMaxReportDelay(_delay);
     }
@@ -438,7 +458,8 @@ abstract contract BaseStrategyUpgradeable {
      * @param _profitFactor A ratio to multiply anticipated
      * `harvest()` gas cost against.
      */
-    function setProfitFactor(uint256 _profitFactor) external onlyAuthorized {
+    function setProfitFactor(uint256 _profitFactor) external {
+        _onlyAuthorized();
         profitFactor = _profitFactor;
         emit UpdatedProfitFactor(_profitFactor);
     }
@@ -456,7 +477,8 @@ abstract contract BaseStrategyUpgradeable {
      * @param _debtThreshold How big of a loss this Strategy may carry without
      * being required to report to the Vault.
      */
-    function setDebtThreshold(uint256 _debtThreshold) external onlyAuthorized {
+    function setDebtThreshold(uint256 _debtThreshold) external {
+        _onlyAuthorized();
         debtThreshold = _debtThreshold;
         emit UpdatedDebtThreshold(_debtThreshold);
     }
@@ -469,7 +491,8 @@ abstract contract BaseStrategyUpgradeable {
      *  This may only be called by governance or the strategist.
      * @param _metadataURI The URI that describe the strategy.
      */
-    function setMetadataURI(string calldata _metadataURI) external onlyAuthorized {
+    function setMetadataURI(string calldata _metadataURI) external {
+        _onlyAuthorized();
         metadataURI = _metadataURI;
         emit UpdatedMetadataURI(_metadataURI);
     }
@@ -637,7 +660,8 @@ abstract contract BaseStrategyUpgradeable {
      *
      *  This may only be called by governance, the strategist, or the keeper.
      */
-    function tend() external onlyKeepers {
+    function tend() external {
+        _onlyKeepers();
         // Don't take profits with this call, but adjust for better gains
         adjustPosition(vault.debtOutstanding());
     }
@@ -666,7 +690,7 @@ abstract contract BaseStrategyUpgradeable {
      *
      *  It is expected that an external system will check `harvestTrigger()`.
      *  This could be a script run off a desktop or cloud bot (e.g.
-     *  https://github.com/iearn-finance/yearn-vaults/blob/master/scripts/keep.py),
+     *  https://github.com/iearn-finance/yearn-vaults/blob/main/scripts/keep.py),
      *  or via an integration with the Keep3r network (e.g.
      *  https://github.com/Macarse/GenericKeep3rV2/blob/master/contracts/keep3r/GenericKeep3rV2.sol).
      * @param callCostInWei The keeper's estimated gas cost to call `harvest()` (in wei).
@@ -724,7 +748,8 @@ abstract contract BaseStrategyUpgradeable {
      *  called to report to the Vault on the Strategy's position, especially if
      *  any losses have occurred.
      */
-    function harvest() external onlyKeepers {
+    function harvest() external {
+        _onlyKeepers();
         uint256 profit = 0;
         uint256 loss = 0;
         uint256 debtOutstanding = vault.debtOutstanding();
@@ -746,10 +771,18 @@ abstract contract BaseStrategyUpgradeable {
         // Allow Vault to take up to the "harvested" balance of this contract,
         // which is the amount it has earned since the last time it reported to
         // the Vault.
+        uint256 totalDebt = vault.strategies(address(this)).totalDebt;
         debtOutstanding = vault.report(profit, loss, debtPayment);
 
         // Check if free returns are left, and re-invest them
         adjustPosition(debtOutstanding);
+
+        // call healthCheck contract
+        if (doHealthCheck && healthCheck != address(0)) {
+            require(HealthCheck(healthCheck).check(profit, loss, debtPayment, debtOutstanding, totalDebt), "!healthcheck");
+        } else {
+            doHealthCheck = true;
+        }
 
         emit Harvested(profit, loss, debtPayment, debtOutstanding);
     }
@@ -768,7 +801,7 @@ abstract contract BaseStrategyUpgradeable {
         uint256 amountFreed;
         (amountFreed, _loss) = liquidatePosition(_amountNeeded);
         // Send it directly back (NOTE: Using `msg.sender` saves some gas here)
-        want.safeTransfer(msg.sender, amountFreed);
+        SafeERC20.safeTransfer(want, msg.sender, amountFreed);
         // NOTE: Reinvest anything leftover on next `tend`/`harvest`
     }
 
@@ -793,9 +826,9 @@ abstract contract BaseStrategyUpgradeable {
      */
     function migrate(address _newStrategy) external {
         require(msg.sender == address(vault));
-        require(BaseStrategyUpgradeable(_newStrategy).vault() == vault);
+        require(BaseStrategy(_newStrategy).vault() == vault);
         prepareMigration(_newStrategy);
-        want.safeTransfer(_newStrategy, want.balanceOf(address(this)));
+        SafeERC20.safeTransfer(want, _newStrategy, want.balanceOf(address(this)));
     }
 
     /**
@@ -808,7 +841,8 @@ abstract contract BaseStrategyUpgradeable {
      * @dev
      *  See `vault.setEmergencyShutdown()` and `harvest()` for further details.
      */
-    function setEmergencyExit() external onlyEmergencyAuthorized {
+    function setEmergencyExit() external {
+        _onlyEmergencyAuthorized();
         emergencyExit = true;
         vault.revokeStrategy();
 
@@ -852,13 +886,14 @@ abstract contract BaseStrategyUpgradeable {
      *  should be protected from sweeping in addition to `want`.
      * @param _token The token to transfer out of this vault.
      */
-    function sweep(address _token) external onlyGovernance {
+    function sweep(address _token) external {
+        _onlyGovernance();
         require(_token != address(want), "!want");
         require(_token != address(vault), "!shares");
 
         address[] memory _protectedTokens = protectedTokens();
         for (uint256 i; i < _protectedTokens.length; i++) require(_token != _protectedTokens[i], "!protected");
 
-        IERC20(_token).safeTransfer(governance(), IERC20(_token).balanceOf(address(this)));
+        SafeERC20.safeTransfer(IERC20(_token), governance(), IERC20(_token).balanceOf(address(this)));
     }
 }
