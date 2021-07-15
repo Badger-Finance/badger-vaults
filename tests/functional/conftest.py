@@ -120,3 +120,7 @@ def rando(accounts):
 @pytest.fixture
 def registry(gov, Registry):
     yield gov.deploy(Registry)
+
+@pytest.fixture
+def badgerRegistry(gov, BadgerRegistry):
+    yield gov.deploy(BadgerRegistry)
