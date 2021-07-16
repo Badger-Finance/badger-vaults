@@ -128,8 +128,7 @@ def test_view_functions(badgerRegistry, vault, strategy, rando):
     # ]
 
 
-def test_vault_promotion(badgerRegistry, vault, rando):
-    governance = accounts.at("0xB65cef03b9B89f99517643226d76e286ee999e77", force=True)
+def test_vault_promotion(badgerRegistry, vault, rando, gov):
 
     # Author adds vault to their list
     badgerRegistry.add(vault.address, {"from": rando})
@@ -140,12 +139,12 @@ def test_vault_promotion(badgerRegistry, vault, rando):
         badgerRegistry.promote(vault.address, {"from": rando})
 
     # Governance is able to promote vault
-    tx = badgerRegistry.promote(vault.address, {"from": governance})
-    assert badgerRegistry.fromAuthor(governance.address) == [vault.address]
+    tx = badgerRegistry.promote(vault.address, {"from": gov})
+    assert badgerRegistry.fromAuthor(gov) == [vault.address]
 
     event = tx.events["PromoteVault"][0]
     assert event["vault"] == vault.address
 
     # Same vault cannot be promoted twice (nothing happens)
-    tx = badgerRegistry.promote(vault.address, {"from": governance})
+    tx = badgerRegistry.promote(vault.address, {"from": gov})
     assert len(tx.events) == 0
