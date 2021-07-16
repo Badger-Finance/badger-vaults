@@ -1,19 +1,18 @@
-# Badger Vaults - Fork of Yearn V4.3.0 - 
-
+# Badger Vaults
+Fork of Yearn V4.3.0
 Please read and be familiar with the [Specification](SPECIFICATION.md).
 
-Badger V2 Vaults - Fork of Yearn with extra checks
-
-
 ## Change from Yearn
-Upgradeable Contracts
-Lost ability to clone strategies
-Pausability of vault
-Smart Contracts need to be approved
-
+Upgradeable Contracts - We deploy AdminUpgradeableProxy
+Lost ability to clone strategies - Strategies are upgradeable, we don't clone them
+Pausability of vault - Vault can be paused
+Smart Contracts need to be approved - approved[msg.sender]
 pendingGovernance is public
 
-Badger Registry
+
+## Badger Registry
+A simple way to index contracts by address
+The only "official" address is governance
 
 
 ## Requirements
@@ -228,27 +227,6 @@ BadgerRegistry[0].fromAuthor(a[0])
 BadgerRegistry[0].fromAuthorVaults(a[0])
 BadgerRegistry[0].fromAuthorWithDetails(a[0])
 
-
-# Deployments
-## NOTE: Subject to changes - WIZARDS ONLY
-
-### Polygon 
-#### Badger Registry
-https://polygonscan.com/address/0x2F054176c888A4469797bE1E389997e6BB040950#writeContract
-
-
-Polygon Registry
-0xD4A5A087107fA9434E490424A27cE2130bE24d4D
-
-Vault Upgradeable Proxy - wBTC Vault
-0xc2bc53BCD33cF43124715038315e11F2577fbd4E
-
-Vault Upgradeable Proxy - wBTC/ibBTC SLP Vault
-0x073611461A526bc7CC90C6d16927C8032BbA8D3C
-
-Vault Logic
-0xdbf515d03240acb3c0f7776782a7863b892af709
-
 ## TODO:
 Rewrite Specification
 Decide how to deal with health factor
@@ -259,3 +237,29 @@ Write Docs for Registry
 Deploy Registry Multichain
 
 Figure out how to reuse Upgradeable Logic to avoid re-deploying both logic and implementation everytime
+
+
+
+### How to Verify Contracts on SideChains
+
+Automatic Verification seems broken
+
+You'll have to do it manually
+
+Deploy the Contract (e.g. AdminUpgradeabilityProxy.get_verification_info)
+
+Then go in Brownie Console
+
+And use the Contract Container to get the verification data
+
+```
+AdminUpgradeabilityProxy.get_verification_info.get_verification_info()
+```
+
+This will flatten the contract
+
+Copy paste that in Etherscan
+
+Make sure to check optimizations else the bytecode will be different
+
+
