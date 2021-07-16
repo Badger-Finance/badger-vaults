@@ -25,21 +25,14 @@ defaults = { # TODO: Use Badger on-chain Registry for all versions & defaults
 }
 
 def deploy_vault(dev):
-    click.echo(
-        f"""
-        Release Information
-
-         local package version: {PACKAGE_VERSION}
-        """
-    )
+    ## Will be assiged to new deployed Vault or to Vault.at
+    vault_logic = False
 
     if click.confirm("Deploy Logic Contracts", default="Y"):
-        use_existing_logic = False
+        vault_logic = Vault.deploy({'from': dev})
     else:
-        # use_existing_logic = True
-        # vault_logic_address = get_address("Vault Logic Address", default=defaults['vaultLogic'])
-        use_existing_logic = False
-        click.echo("Existing Vault Logic not supported, defaulting Deploy Logic Contracts to 'Yes'")
+        vault_logic_address = get_address("Vault Logic Address", default=defaults['vaultLogic'])
+        vault_logic = Vault.at(vault_logic_address)
 
     token = Token.at(get_address("Vault Want Token"))
 
@@ -82,7 +75,6 @@ def deploy_vault(dev):
             management
         ]
         
-        vault_logic = Vault.deploy({'from': dev})
         vault_proxy = AdminUpgradeabilityProxy.deploy(vault_logic, proxyAdmin, vault_logic.initialize.encode_input(*args), {'from': dev})
         
         ## We delete from deploy and then fetch again so we can interact

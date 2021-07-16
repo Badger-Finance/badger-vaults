@@ -230,11 +230,28 @@ BadgerRegistry[0].fromAuthorWithDetails(a[0])
 ## TODO:
 Rewrite Specification
 Decide how to deal with health factor
-Chart out "expected" flow to set up
-Write Docs for Deploying
-Write Docs for Registry
+Chart out "expected" flow to set up -> https://miro.com/app/board/o9J_l6OEX6k=/
 
-Deploy Registry Multichain
+### Deploying
+You will need this repo to deploy the Vaults
+
+To deploy the Strategy, use the Brownie Mix
+
+To Deploy the Vault, use
+`brownie run deploy/deploy_badger_vault.py`
+And follow the on screen instructions
+NOTE: All default vaulues are for mainnet, if you are deploying somewhere else you'll have to change them
+
+## Registry
+The registry allows you to index Vaults by author.
+
+Only the author can register a Vault under their own name
+
+Notice that the registry can be griefed, only use addresses you trust.
+
+For each deployment of the registry, the `public` variable `governance` allows you to know the index of the trusted vaults
+
+
 
 Figure out how to reuse Upgradeable Logic to avoid re-deploying both logic and implementation everytime
 

@@ -30,27 +30,7 @@ def deploy_strategy_logic(logic):
     """
     dev = connect_account()
 
-    click.echo(
-        f"""
-        Release Information
-
-         local package version: {PACKAGE_VERSION}
-        """
-    )
-
-    if click.confirm("Deploy Logic Contracts", default="Y"):
-        use_existing_logic = False
-    else:
-        # use_existing_logic = True
-        # strat_logic_address = get_address("Strat Logic Address", default=defaults['stratLogic'])
-        use_existing_logic = False
-        click.echo(
-            "Existing Vault Logic not supported, defaulting Deploy Logic Contracts to 'Yes'")
-    if click.confirm("Deploy New Vault", default="Y"):
-        vault = deploy_vault(dev)
-        click.echo(f"Using new Vault {vault.name()} at {vault.address}")
-    else: 
-        vault = Vault.at(get_address("Strat Vault"))
+    vault = Vault.at(get_address("Specify Vault Address for the Strategy"))
 
     proxyAdmin = get_address("Proxy Admin", default=defaults['proxyAdmin'])
     rewards = get_address("Rewards contract", default=defaults['rewards'])
@@ -83,6 +63,7 @@ def deploy_strategy_logic(logic):
 
         strat_logic = logic.deploy({'from': dev})
         strat_proxy = AdminUpgradeabilityProxy.deploy(strat_logic, proxyAdmin, strat_logic.initialize.encode_input(*args), {'from': dev})
+        
         ## We delete from deploy and then fetch again so we can interact
         AdminUpgradeabilityProxy.remove(strat_proxy)
         strat_proxy = logic.at(strat_proxy.address)
@@ -91,9 +72,6 @@ def deploy_strategy_logic(logic):
         print(dir(strat_proxy))
         print("Strat Args", args)
         click.echo(f"New Strategy Release deployed [{strat_proxy.address}]")
-        click.echo(
-            "    NOTE: Strategy is not registered in Registry, please register!"
-        )
 
         return strat_proxy
 
