@@ -95,10 +95,6 @@ struct StrategyParams:
     totalDebt: uint256  # Total outstanding debt that Strategy has
     totalGain: uint256  # Total returns that Strategy has realized for Vault
     totalLoss: uint256  # Total losses that Strategy has realized for Vault
-    enforceChangeLimit: bool # Allow bypassing the lossRatioLimit checks
-    profitLimitRatio: uint256 # Allowed Percentage of price per share positive changes
-    lossLimitRatio: uint256 # Allowed Percentage of price per share negative changes
-    customCheck: address
 
 event StrategyAdded:
     strategy: indexed(address)
@@ -199,23 +195,19 @@ event StrategyAddedToQueue:
 ## NEW ##
 # New Functionality for Badger
 ## NOTE Block for Lock - Used for Deposit and Withdrawal, to avoid single attacker exploits
-blockLock: public(HashMap[address, uint256])
+blockLock: public(HashMap[address, uint256]) ## Unused, here for SLOT
 
 ## Approved Contracts
 approved: public(HashMap[address, bool])
 
 ## NOTE Paused, to block deposit, withdrawals, transfers and approval functions
 paused: public(bool)
-
 ## End New
 
 # NOTE: Track the total for overhead targeting purposes
 strategies: public(HashMap[address, StrategyParams])
 MAXIMUM_STRATEGIES: constant(uint256) = 20
 DEGRADATION_COEFFICIENT: constant(uint256) = 10 ** 18
-# SET_SIZE can be any number but having it in power of 2 will be more gas friendly and collision free.
-# Note: Make sure SET_SIZE is greater than MAXIMUM_STRATEGIES
-SET_SIZE: constant(uint256) = 32
 
 # Ordering that `withdraw` uses to determine which strategies to pull funds from
 # NOTE: Does *NOT* have to match the ordering of all the current strategies that
@@ -629,31 +621,36 @@ def setWithdrawalQueue(queue: address[MAXIMUM_STRATEGIES]):
     """
     assert msg.sender in [self.management, self.governance]
 
-    set: address[SET_SIZE] = empty(address[SET_SIZE])
+    # HACK: Temporary until Vyper adds support for Dynamic arrays
+    old_queue: address[MAXIMUM_STRATEGIES] = empty(address[MAXIMUM_STRATEGIES])
     for i in range(MAXIMUM_STRATEGIES):
+        old_queue[i] = self.withdrawalQueue[i] 
         if queue[i] == ZERO_ADDRESS:
             # NOTE: Cannot use this method to remove entries from the queue
-            assert self.withdrawalQueue[i] == ZERO_ADDRESS
+            assert old_queue[i] == ZERO_ADDRESS
             break
         # NOTE: Cannot use this method to add more entries to the queue
-        assert self.withdrawalQueue[i] != ZERO_ADDRESS
+        assert old_queue[i] != ZERO_ADDRESS
 
         assert self.strategies[queue[i]].activation > 0
 
-        # NOTE: `key` is first `log_2(SET_SIZE)` bits of address (which is a hash)
-        key: uint256 = bitwise_and(convert(queue[i], uint256), SET_SIZE - 1)
-        # Most of the times following for loop only run once which is making it highly gas efficient
-        # but in the worst case of key collision it will run linearly and find first empty slot in the set.
-        for j in range(SET_SIZE):
-            # NOTE: we can always find space by treating set as circular (as long as `SET_SIZE >= MAXIMUM_STRATEGIES`)
-            idx: uint256 = (key + j) % SET_SIZE
-            assert set[idx] != queue[i]  # dev: duplicate in set
-            if set[idx] == ZERO_ADDRESS:
-                set[idx] = queue[i]
+        existsInOldQueue: bool = False
+        for j in range(MAXIMUM_STRATEGIES):
+            if queue[j] == ZERO_ADDRESS:
+                existsInOldQueue = True
                 break
+            if queue[i] == old_queue[j]:
+                # NOTE: Ensure that every entry in queue prior to reordering exists now
+                existsInOldQueue = True
+
+            if j <= i:
+                # NOTE: This will only check for duplicate entries in queue after `i`
+                continue
+            assert queue[i] != queue[j]  # dev: do not add duplicate strategies
+
+        assert existsInOldQueue # dev: do not add new strategies
 
         self.withdrawalQueue[i] = queue[i]
-
     log UpdateWithdrawalQueue(queue)
 
 @internal
@@ -1260,8 +1257,6 @@ def addStrategy(
     minDebtPerHarvest: uint256,
     maxDebtPerHarvest: uint256,
     performanceFee: uint256,
-    profitLimitRatio: uint256 = 100, # 1%
-    lossLimitRatio: uint256 = 1 # 0.01%
 ):
     """
     @notice
@@ -1310,10 +1305,6 @@ def addStrategy(
         totalDebt: 0,
         totalGain: 0,
         totalLoss: 0,
-        profitLimitRatio: profitLimitRatio,
-        lossLimitRatio: lossLimitRatio,
-        enforceChangeLimit: True,
-        customCheck: ZERO_ADDRESS
     })
     log StrategyAdded(strategy, debtRatio, minDebtPerHarvest, maxDebtPerHarvest, performanceFee)
 
@@ -1411,20 +1402,6 @@ def updateStrategyPerformanceFee(
     self.strategies[strategy].performanceFee = performanceFee
     log StrategyUpdatePerformanceFee(strategy, performanceFee)
 
-
-@external
-def setStrategyEnforceChangeLimit(strategy: address, enabled: bool):
-    assert msg.sender in [self.management, self.governance]
-    assert self.strategies[strategy].activation > 0
-    self.strategies[strategy].enforceChangeLimit = enabled
-
-@external
-def setStrategySetLimitRatio(strategy: address, _lossRatioLimit: uint256, _profitLimitRatio: uint256):
-    assert msg.sender in [self.management, self.governance]
-    assert self.strategies[strategy].activation > 0
-    self.strategies[strategy].lossLimitRatio = _lossRatioLimit
-    self.strategies[strategy].profitLimitRatio = _profitLimitRatio
-
 @internal
 def _revokeStrategy(strategy: address):
     self.debtRatio -= self.strategies[strategy].debtRatio
@@ -1472,11 +1449,7 @@ def migrateStrategy(oldVersion: address, newVersion: address):
         lastReport: strategy.lastReport,
         totalDebt: strategy.totalDebt,
         totalGain: 0,
-        totalLoss: 0,
-        profitLimitRatio: strategy.profitLimitRatio,
-        lossLimitRatio: strategy.lossLimitRatio,
-        enforceChangeLimit: True,
-        customCheck: strategy.customCheck
+        totalLoss: 0
     })
 
     Strategy(oldVersion).migrate(newVersion)
@@ -1510,10 +1483,7 @@ def revokeStrategy(strategy: address = msg.sender):
     @param strategy The Strategy to revoke.
     """
     assert msg.sender in [strategy, self.governance, self.guardian]
-    # NOTE: This function may be called via `BaseStrategy.setEmergencyExit` while the
-    #       strategy might have already been revoked or had the debt limit set to zero
-    if self.strategies[strategy].debtRatio == 0:
-        return # already set to zero, nothing to do
+    assert self.strategies[strategy].debtRatio != 0 # dev: already zero
 
     self._revokeStrategy(strategy)
 
@@ -1714,11 +1684,8 @@ def _assessFees(strategy: address, gain: uint256) -> uint256:
     # Issue new shares to cover fees
     # NOTE: In effect, this reduces overall share price by the combined fee
     # NOTE: may throw if Vault.totalAssets() > 1e64, or not called for more than a year
-    if self.strategies[strategy].activation == block.timestamp:
-        return 0  # NOTE: Just added, no fees to assess
-
     duration: uint256 = block.timestamp - self.strategies[strategy].lastReport
-    assert duration != 0 #dev: can't call assessFees twice within the same block
+    assert duration != 0 # can't assessFees twice within the same block
 
     if gain == 0:
         # NOTE: The fees are not charged if there hasn't been any gains reported
@@ -1727,7 +1694,7 @@ def _assessFees(strategy: address, gain: uint256) -> uint256:
     management_fee: uint256 = (
         (
             (self.strategies[strategy].totalDebt - Strategy(strategy).delegatedAssets())
-            * duration
+            * duration 
             * self.managementFee
         )
         / MAX_BPS

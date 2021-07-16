@@ -27,9 +27,6 @@ def test_strategy_harvest(vault, gov, strategy, token, common_health_check, chai
     strategy.harvest()
     strategy.setHealthCheck(common_health_check, {"from": gov})
 
-    chain.sleep(15)
-    chain.mine()
-
     chain.snapshot()
     # Small gain doesn't trigger
     balance = strategy.estimatedTotalAssets()

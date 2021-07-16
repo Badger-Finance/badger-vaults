@@ -15,7 +15,6 @@ def test_performance_fees(gov, vault, token, just_strategy, rewards, strategist,
 
     token.transfer(just_strategy, 10 ** token.decimals(), {"from": gov})
     chain.sleep(1)
-    vault.setStrategyEnforceChangeLimit(just_strategy, False, {"from": gov})
     just_strategy.harvest({"from": strategist})
 
     assert vault.balanceOf(rewards) == 0.045 * 10 ** token.decimals()

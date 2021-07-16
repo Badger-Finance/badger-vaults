@@ -325,8 +325,7 @@ abstract contract BaseStrategy {
 
     /**
      * @notice
-     *  Initializes the Strategy, this is called only once, when the
-     *  contract is deployed.
+     *  Initializes the Strategy, to be called by the Strategy that inherits from this
      * @dev `_vault` should implement `VaultAPI`.
      * @param _vault The address of the Vault responsible for this Strategy.
      * @param _strategist The address to assign as `strategist`.
