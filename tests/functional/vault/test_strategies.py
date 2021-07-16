@@ -307,7 +307,6 @@ def test_revokeStrategy(chain, gov, vault, strategy, rando):
 
     assert vault.strategies(strategy).dict() == {
         "performanceFee": 1000,
-        "enforceChangeLimit": True,
         "activation": activation_timestamp,
         "debtRatio": 0,  # This changed
         "minDebtPerHarvest": 10,

@@ -32,7 +32,6 @@ def test_zero_fees(gov, vault, token, just_strategy, rewards, strategist, chain)
 
     token.transfer(just_strategy, 10 ** token.decimals(), {"from": gov})
     chain.sleep(1)
-    vault.setStrategyEnforceChangeLimit(just_strategy, False, {"from": gov})
     just_strategy.harvest({"from": strategist})
 
     assert vault.managementFee() == 0
