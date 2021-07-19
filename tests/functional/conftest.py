@@ -1,6 +1,6 @@
 import pytest
 
-from brownie import Token, TokenNoReturn, TestDeposit, TestFlashLoan
+from brownie import Token, TokenNoReturn, TestDeposit, TestFlashLoan, VipCappedGuestList
 
 
 @pytest.fixture
@@ -119,3 +119,8 @@ def rando(accounts):
 @pytest.fixture
 def badgerRegistry(gov, BadgerRegistry):
     yield gov.deploy(BadgerRegistry, gov)
+
+@pytest.fixture
+def guestlist(gov, VipCappedGuestList, vault):
+    # Guestlist deployed for vault and with bouncer = gov
+    yield gov.deploy(VipCappedGuestList, vault.address)
