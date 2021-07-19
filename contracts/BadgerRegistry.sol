@@ -198,7 +198,7 @@ contract BadgerRegistry {
           lastReport: params.lastReport,
           totalDebt: params.totalDebt,
           totalGain: params.totalGain,
-          totalLoss: params.totalLoss,
+          totalLoss: params.totalLoss
         });
         allStrats[z] = stratData;
       }
