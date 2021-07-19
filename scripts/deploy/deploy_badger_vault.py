@@ -11,7 +11,7 @@ DEFAULT_VAULT_NAME = lambda token: f"Badger Sett {token.symbol()}"
 DEFAULT_VAULT_SYMBOL = lambda token: f"b{token.symbol()}"
 
 PACKAGE_VERSION = yaml.safe_load(
-    (Path(__file__).parent.parent / "ethpm-config.yaml").read_text()
+    (Path(__file__).parent.parent.parent / "ethpm-config.yaml").read_text()
 )["version"]
 
 defaults = { # TODO: Use Badger on-chain Registry for all versions & defaults

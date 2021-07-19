@@ -13,7 +13,7 @@ import click
 from brownie import TestStrategyUpgradeable, AdminUpgradeabilityProxy, web3, Vault
 
 PACKAGE_VERSION = yaml.safe_load(
-    (Path(__file__).parent.parent / "ethpm-config.yaml").read_text()
+    (Path(__file__).parent.parent.parent / "ethpm-config.yaml").read_text()
 )["version"]
 
 defaults = {  # TODO: Use Badger on-chain Registry for all versions & defaults
