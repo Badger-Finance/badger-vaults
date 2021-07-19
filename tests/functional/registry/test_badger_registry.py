@@ -118,10 +118,6 @@ def test_view_functions(badgerRegistry, vault, strategy, rando):
     #                 params[6], # totalDebt,
     #                 params[7], # totalGain,
     #                 params[8], # totalLoss,
-    #                 params[9], # enforceChangeLimit,
-    #                 params[10], # profitLimitRatio,
-    #                 params[11], # lossLimitRatio,
-    #                 params[12], # customCheck
     #             ],
     #         ],
     #     ],

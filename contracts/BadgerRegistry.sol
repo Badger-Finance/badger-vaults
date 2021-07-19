@@ -15,10 +15,6 @@ struct StrategyParams {
   uint256 totalDebt;
   uint256 totalGain;
   uint256 totalLoss;
-  bool enforceChangeLimit;
-  uint256 profitLimitRatio;
-  uint256 lossLimitRatio;
-  address customCheck;
 }
 
 interface VaultView {
@@ -84,10 +80,6 @@ contract BadgerRegistry {
     uint256 totalDebt;
     uint256 totalGain;
     uint256 totalLoss;
-    bool enforceChangeLimit;
-    uint256 profitLimitRatio;
-    uint256 lossLimitRatio;
-    address customCheck;
   }
 
   /// Vault data we will return for each Vault
@@ -207,10 +199,6 @@ contract BadgerRegistry {
           totalDebt: params.totalDebt,
           totalGain: params.totalGain,
           totalLoss: params.totalLoss,
-          enforceChangeLimit: params.enforceChangeLimit,
-          profitLimitRatio: params.profitLimitRatio,
-          lossLimitRatio: params.lossLimitRatio,
-          customCheck: params.customCheck
         });
         allStrats[z] = stratData;
       }
