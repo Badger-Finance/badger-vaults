@@ -57,6 +57,8 @@ interface Strategy:
     def withdraw(_amount: uint256) -> uint256: nonpayable
     def migrate(_newStrategy: address): nonpayable
 
+interface GuestList:
+    def authorized(guest: address, amount: uint256) -> bool: view
 
 
 event Transfer:
@@ -84,6 +86,7 @@ governance: public(address)
 management: public(address)
 guardian: public(address)
 pendingGovernance: public(address)
+guestList: public(GuestList)
 
 struct StrategyParams:
     performanceFee: uint256  # Strategist's fee (basis points)
@@ -125,6 +128,9 @@ event NewPendingGovernance:
 
 event UpdateManagement:
     management: address # New active manager
+
+event UpdateGuestList:
+    guestList: address # Vault guest list address
 
 event UpdateRewards:
     rewards: address # New active rewards recipient
@@ -423,6 +429,20 @@ def setManagement(management: address):
     self.management = management
     log UpdateManagement(management)
 
+@external
+def setGuestList(guestList: address):
+    """
+    @notice
+        Used to set or change `guestList`. A guest list is another contract
+        that dictates who is allowed to participate in a Vault (and transfer
+        shares).
+
+        This may only be called by governance.
+    @param guestList The address of the `GuestList` contract to use.
+    """
+    assert msg.sender == self.governance
+    self.guestList = GuestList(guestList)
+    log UpdateGuestList(guestList)
 
 @external
 def setRewards(rewards: address):
@@ -968,6 +988,10 @@ def deposit(_amount: uint256 = MAX_UINT256, recipient: address = msg.sender) -> 
 
     # Ensure we are depositing something
     assert amount > 0
+
+    # Ensure deposit is permitted by guest list
+    if self.guestList.address != ZERO_ADDRESS:
+        assert self.guestList.authorized(msg.sender, amount)
 
     # Issue new shares (needs to be done before taking deposit to be accurate)
     # Shares are issued to recipient (may be different from msg.sender)
