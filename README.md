@@ -280,3 +280,9 @@ Copy paste that in Etherscan
 Make sure to check optimizations else the bytecode will be different
 
 
+
+
+
+## TODO:
+Tests for GuestList
+Scripts for GuestList
