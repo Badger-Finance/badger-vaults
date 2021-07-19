@@ -861,7 +861,7 @@ abstract contract BaseStrategy {
      *    }
      * ```
      */
-    function protectedTokens() internal view virtual returns (address[] memory);
+    function protectedTokens() public view virtual returns (address[] memory);
 
     /**
      * @notice
