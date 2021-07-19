@@ -5,8 +5,7 @@ pragma experimental ABIEncoderV2;
 import "deps/@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
 import "deps/@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "deps/@openzeppelin/contracts-upgradeable/cryptography/MerkleProofUpgradeable.sol";
-import "interfaces/yearn/GuestlistApi.sol";
-import "interfaces/yearn/BadgerWrapperApi.sol";
+import {VaultAPI} from "./BaseStrategy.sol";
 
 /**
  * @notice A basic guest list contract for testing.
@@ -60,11 +59,11 @@ contract VipCappedGuestListBbtcUpgradeable is OwnableUpgradeable {
     }
 
     function remainingTotalDepositAllowed() public view returns (uint256) {
-        return totalDepositCap.sub(IERC20(wrapper).totalSupply());
+        return totalDepositCap.sub(VaultAPI(wrapper).totalSupply());
     }
 
     function remainingUserDepositAllowed(address user) public view returns (uint256) {
-        return userDepositCap.sub(IERC20(wrapper).balanceOf(user));
+        return userDepositCap.sub(VaultAPI(wrapper).balanceOf(user));
     }
 
     /**
