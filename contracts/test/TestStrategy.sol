@@ -128,7 +128,7 @@ contract TestStrategy is BaseStrategy {
         // Nothing needed here because no additional tokens/tokenized positions for mock
     }
 
-    function protectedTokens() internal view override returns (address[] memory) {
+    function protectedTokens() public view override returns (address[] memory) {
         address[] memory protected = new address[](1);
         protected[0] = protectedToken;
         return protected;
