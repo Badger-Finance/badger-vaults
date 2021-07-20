@@ -58,7 +58,7 @@ interface Strategy:
     def migrate(_newStrategy: address): nonpayable
 
 interface GuestList:
-    def authorized(guest: address, amount: uint256) -> bool: view
+    def authorized(guest: address, amount: uint256, proof: bytes32[1]) -> bool: view
 
 
 event Transfer:
@@ -255,6 +255,7 @@ DOMAIN_SEPARATOR: public(bytes32)
 DOMAIN_TYPE_HASH: constant(bytes32) = keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)')
 PERMIT_TYPE_HASH: constant(bytes32) = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
 
+defaultProof: constant(bytes32[1]) = [EMPTY_BYTES32]
 
 @external
 def initialize(
@@ -933,7 +934,7 @@ def _issueSharesForAmount(to: address, amount: uint256) -> uint256:
 
 @external
 @nonreentrant("withdraw")
-def deposit(_amount: uint256 = MAX_UINT256, recipient: address = msg.sender) -> uint256:
+def deposit(_amount: uint256 = MAX_UINT256, recipient: address = msg.sender, proof: bytes32[1] = defaultProof) -> uint256:
     """
     @notice
         Deposits `_amount` `token`, issuing shares to `recipient`. If the
@@ -991,7 +992,7 @@ def deposit(_amount: uint256 = MAX_UINT256, recipient: address = msg.sender) -> 
 
     # Ensure deposit is permitted by guest list
     if self.guestList.address != ZERO_ADDRESS:
-        assert self.guestList.authorized(msg.sender, amount)
+        assert self.guestList.authorized(msg.sender, amount, proof)
 
     # Issue new shares (needs to be done before taking deposit to be accurate)
     # Shares are issued to recipient (may be different from msg.sender)
