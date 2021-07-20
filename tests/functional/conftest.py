@@ -121,6 +121,8 @@ def badgerRegistry(gov, BadgerRegistry):
     yield gov.deploy(BadgerRegistry, gov)
 
 @pytest.fixture
-def guestlist(gov, VipCappedGuestList, vault):
+def guestlist(gov, VipCappedGuestListBbtcUpgradeable, vault):
     # Guestlist deployed for vault and with bouncer = gov
-    yield gov.deploy(VipCappedGuestList, vault.address)
+    guestlist = gov.deploy(VipCappedGuestListBbtcUpgradeable)
+    guestlist.initialize(vault.address, {"from": gov})
+    yield guestlist

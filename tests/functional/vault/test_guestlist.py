@@ -15,17 +15,17 @@ def vault(gov, token, Vault):
     yield vault
 
 def test_guestlist_permissions(gov, rando, guestlist):
-    # Check that gov is bouncer (deployer of guestlist):
-    assert gov.address == guestlist.bouncer()
+    # Check that gov is owner (deployer of guestlist):
+    assert gov.address == guestlist.owner()
 
-    # Only bouncer can set guests
+    # Only owner can set guests
     with brownie.reverts():
         guestlist.setGuests([rando.address], [True], {"from": rando})
     
     guestlist.setGuests([rando.address], [True], {"from": gov})
     assert guestlist.guests(rando.address) == True
 
-    # Only bouncer can set guestRoot
+    # Only owner can set guestRoot
     with brownie.reverts():
         guestlist.setGuestRoot(
             "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a", 
@@ -38,12 +38,19 @@ def test_guestlist_permissions(gov, rando, guestlist):
     )
     assert guestlist.guestRoot() == "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
 
-    # Only bouncer can set userDepositCap
+    # Only owner can set userDepositCap
     with brownie.reverts():
         guestlist.setUserDepositCap(1e18, {"from": rando})
     
     guestlist.setUserDepositCap(1e18, {"from": gov})
     assert guestlist.userDepositCap() == 1e18
+
+    # Only owner can set totalDepositCap
+    with brownie.reverts():
+        guestlist.setTotalDepositCap(100e18, {"from": rando})
+    
+    guestlist.setTotalDepositCap(100e18, {"from": gov})
+    assert guestlist.totalDepositCap() == 100e18
 
 def test_manual_guestlist_flow(gov, rando, vault, token, guestlist):
     # guestList is the address zero by default
@@ -72,6 +79,10 @@ def test_manual_guestlist_flow(gov, rando, vault, token, guestlist):
     # Set userDepositCap
     guestlist.setUserDepositCap(balance, {"from": gov})
     assert guestlist.userDepositCap() == balance
+
+    # Set totalDepositCap
+    guestlist.setTotalDepositCap(2 ** 256 - 1, {"from": gov})
+    assert guestlist.totalDepositCap() == 2 ** 256 - 1
     
     chain.sleep(10)
     chain.mine()
@@ -95,8 +106,12 @@ def test_manual_guestlist_flow(gov, rando, vault, token, guestlist):
     chain.sleep(10)
     chain.mine()
 
+    print(guestlist.remainingUserDepositAllowed(rando.address))
+    print(guestlist.remainingTotalDepositAllowed())
+    print(balance // 2)
+
     # User, manually added to the guestlist, can deposit
-    vault.deposit(balance // 2, {"from": rando})
+    vault.deposit(balance // 2, rando.address, ["0x0"], {"from": rando})
 
     assert token.balanceOf(vault) == balance // 2
     assert vault.pricePerShare() == 10 ** token.decimals()  # 1:1 price
