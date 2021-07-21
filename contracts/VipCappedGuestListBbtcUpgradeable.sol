@@ -71,7 +71,7 @@ contract VipCappedGuestListBbtcUpgradeable is OwnableUpgradeable {
      * @notice Note that the list is designed to ONLY EXPAND in future instances
      * @notice The admin does retain the ability to ban individual addresses
      */
-    function proveInvitation(address account, bytes32[] calldata merkleProof) public {
+    function proveInvitation(address account, bytes32[11] calldata merkleProof) public {
         // Verify Merkle Proof
         require(_verifyInvitationProof(account, merkleProof));
 
@@ -119,7 +119,7 @@ contract VipCappedGuestListBbtcUpgradeable is OwnableUpgradeable {
     function authorized(
         address _guest,
         uint256 _amount,
-        bytes32[] calldata _merkleProof
+        bytes32[11] calldata _merkleProof
     ) external view returns (bool) {
         // Yes: If the user is on the list, and under the cap
         // Yes: If the user is not on the list, supplies a valid proof (thereby being added to the list), and is under the cap
@@ -155,7 +155,7 @@ contract VipCappedGuestListBbtcUpgradeable is OwnableUpgradeable {
         }
     }
 
-    function _verifyInvitationProof(address account, bytes32[] calldata merkleProof) internal view returns (bool) {
+    function _verifyInvitationProof(address account, bytes32[11] calldata merkleProof) internal view returns (bool) {
         bytes32 node = keccak256(abi.encodePacked(account));
         return MerkleProofUpgradeable.verify(merkleProof, guestRoot, node);
     }

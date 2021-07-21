@@ -3,6 +3,8 @@ import brownie
 import json
 from brownie import ZERO_ADDRESS, chain, web3, accounts
 
+with open('merkle/merkle_guestlist_test.json') as f:
+    testDistribution = json.load(f)
 
 @pytest.fixture
 def vault(gov, token, Vault):
@@ -52,6 +54,8 @@ def test_guestlist_permissions(gov, rando, guestlist):
     guestlist.setTotalDepositCap(100e18, {"from": gov})
     assert guestlist.totalDepositCap() == 100e18
 
+    
+
 def test_manual_guestlist_flow(gov, rando, vault, token, guestlist):
     # guestList is the address zero by default
     assert vault.guestList() == ZERO_ADDRESS
@@ -60,11 +64,11 @@ def test_manual_guestlist_flow(gov, rando, vault, token, guestlist):
     balance = token.balanceOf(gov)
     token.transfer(rando.address, balance, {"from": gov})
     token.approve(vault, balance, {"from": rando})
-    vault.deposit(balance // 2, {"from": rando})
+    vault.deposit(balance // 4, {"from": rando})
 
-    assert token.balanceOf(vault) == balance // 2
+    assert token.balanceOf(vault) == balance // 4
     assert vault.pricePerShare() == 10 ** token.decimals()  # 1:1 price
-    assert vault.balanceOf(rando.address) == balance // 2
+    assert vault.balanceOf(rando.address) == balance // 4
 
     chain.sleep(10)
     chain.mine()
@@ -87,9 +91,24 @@ def test_manual_guestlist_flow(gov, rando, vault, token, guestlist):
     chain.sleep(10)
     chain.mine()
 
-    # User, not in guestlist, can't deposit
+    # User, not in guestlist, can deposit since guestRoot == 0x0
+    assert guestlist.guests(rando.address) == False
+    vault.deposit(balance // 4, {"from": rando})
+
+    chain.sleep(10)
+    chain.mine()
+
+    # Set guestRoot
+    guestlist.setGuestRoot(
+        "0xc8eb7b9a26b0681320a4f6db1c93891f573fa496b6a99653f11cba4616899027", 
+        {"from": gov}
+    )
+    assert guestlist.guestRoot() == "0xc8eb7b9a26b0681320a4f6db1c93891f573fa496b6a99653f11cba4616899027"
+
+    # User, not in guestlist, can't deposit since guestRoot is set
+    assert guestlist.guests(rando.address) == False
     with brownie.reverts():
-        vault.deposit(balance // 2, {"from": rando})
+        vault.deposit(balance // 4, {"from": rando})
 
     # User, not in guestlist, can withdraw
     vault.withdraw(balance // 2, {"from": rando})
@@ -111,73 +130,70 @@ def test_manual_guestlist_flow(gov, rando, vault, token, guestlist):
     print(balance // 2)
 
     # User, manually added to the guestlist, can deposit
-    vault.deposit(balance // 2, rando.address, ["0x0"], {"from": rando})
+    vault.deposit(balance // 2, rando.address, {"from": rando})
 
     assert token.balanceOf(vault) == balance // 2
     assert vault.pricePerShare() == 10 ** token.decimals()  # 1:1 price
     assert vault.balanceOf(rando.address) == balance // 2
 
-# For Badger Merkle Guestlist update:
 
-# def test_merkle_guestlist_flow(gov, rando, vault, token, guestlist):
-#     with open("./merkle/merkle_guestlist_test.json") as f:
-#         testDistribution = json.load(f)
 
-#     balance = token.balanceOf(gov)
+def test_merkle_guestlist_flow(gov, rando, vault, token, guestlist):
+    balance = token.balanceOf(gov)
 
-#     # Set guestRoot equal to merkleRoot
-#     merkleRoot = testDistribution["merkleRoot"]
-#     guestlist.setGuestRoot(merkleRoot, {"from": gov})
+    # Set guestRoot equal to merkleRoot
+    merkleRoot = testDistribution["merkleRoot"]
+    guestlist.setGuestRoot(merkleRoot, {"from": gov})
 
-#     guestlist.setUserDepositCap(balance, {"from": gov})
-#     assert guestlist.userDepositCap() == balance
+    guestlist.setUserDepositCap(balance, {"from": gov})
+    assert guestlist.userDepositCap() == balance
 
     
-#     # Test merkle verification upon deposit
-#     users = [
-#         web3.toChecksumAddress("0x8107b00171a02f83D7a17f62941841C29c3ae60F"),
-#         web3.toChecksumAddress("0x716722C80757FFF31DA3F3C392A1736b7cfa3A3e"),
-#         web3.toChecksumAddress("0xE2e4F2A725E42D0F0EF6291F46c430F963482001"),
-#     ]
+    # Test merkle verification upon deposit
+    users = [
+        web3.toChecksumAddress("0x8107b00171a02f83D7a17f62941841C29c3ae60F"),
+        web3.toChecksumAddress("0x716722C80757FFF31DA3F3C392A1736b7cfa3A3e"),
+        web3.toChecksumAddress("0xE2e4F2A725E42D0F0EF6291F46c430F963482001"),
+    ]
 
-#     for user in users:
-#         accounts.at(user, force=True)
+    for user in users:
+        user = accounts.at(user, force=True)
 
-#         claim = testDistribution["claims"][user]
-#         proof = claim["proof"]
+        claim = testDistribution["claims"][user]
+        proof = claim["proof"]
 
-#         # Gov transfers tokens to user
-#         token.transfer(user.address, balance // 6, {"from": gov})
-#         token.approve(vault, balance, {"from": user})
+        # Gov transfers tokens to user
+        token.transfer(user.address, balance // 6, {"from": gov})
+        token.approve(vault, balance, {"from": user})
 
-#         vault.deposit(balance // 6, proof, {"from": user})
-#         assert vault.balanceOf(user.address) == balance // 6 # Since 1:1 price
+        vault.deposit(balance // 6, user.address, proof, {"from": user})
+        assert vault.balanceOf(user.address) == balance // 6 # Since 1:1 price
 
 
-#     # Test depositing after proveInvitation of a few users
-#     users = [
-#         web3.toChecksumAddress("0x1fafb618033Fb07d3a99704a47451971976CB586"),
-#         web3.toChecksumAddress("0xCf7760E00327f608543c88526427b35049b58984"),
-#         web3.toChecksumAddress("0xb43b8B43dE2e59A2B44caa2910E31a4E835d4068"),
-#     ]
+    # Test depositing after proveInvitation of a few users
+    users = [
+        web3.toChecksumAddress("0x1fafb618033Fb07d3a99704a47451971976CB586"),
+        web3.toChecksumAddress("0xCf7760E00327f608543c88526427b35049b58984"),
+        web3.toChecksumAddress("0xb43b8B43dE2e59A2B44caa2910E31a4E835d4068"),
+    ]
 
-#     for user in users:
-#         accounts.at(user, force=True)
+    for user in users:
+        user = accounts.at(user, force=True)
 
-#         claim = testDistribution["claims"][user]
-#         proof = claim["proof"]
+        claim = testDistribution["claims"][user]
+        proof = claim["proof"]
 
-#         # Gov transfers tokens to user
-#         token.transfer(user.address, balance // 6, {"from": gov})
-#         token.approve(vault, balance, {"from": user})
+        # Gov transfers tokens to user
+        token.transfer(user.address, balance // 6, {"from": gov})
+        token.approve(vault, balance, {"from": user})
 
-#         tx = guestlist.proveInvitation(user, proof)
-#         assert tx.events[0]["guestRoot"] == merkleRoot
-#         assert tx.events[0]["account"] == user
+        tx = guestlist.proveInvitation(user.address, proof)
+        assert tx.events[0]["guestRoot"] == merkleRoot
+        assert tx.events[0]["account"] == user.address
 
-#         # User deposits 1 token through wrapper (without proof)
-#         vault.deposit(balance // 6, [], {"from": user})
-#         assert vault.balanceOf(user.address) == balance // 6 # Since 1:1 price
+        # User deposits 1 token through wrapper (without proof)
+        vault.deposit(balance // 6, {"from": user})
+        assert vault.balanceOf(user.address) == balance // 6 # Since 1:1 price
 
 
     
