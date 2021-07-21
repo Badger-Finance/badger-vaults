@@ -142,27 +142,38 @@ contract BadgerBouncer is OwnableUpgradeable {
     }
 
     /**
-     * @notice Verifies permission criteria and redirects deposit to designated vault if authorized
+     * @notice Deposits into vault with merkle proof verification
      */
     function deposit(address vault, uint256 amount, bytes32[] calldata merkleProof) external {
-        require(authorized(msg.sender, vault, amount, merkleProof), "Unauthorized user for given vault");
-        require(isBanned[msg.sender] == false, "Blacklisted user");
-
-        VaultAPI(vault).deposit(amount, msg.sender);
-
-        emit Deposit(vault, amount, msg.sender);
+        _deposit(vault, amount, merkleProof);
     }
 
     /**
-     * @notice Verifies permission criteria for a specificed user and redirects deposit to designated vault if authorized
+     * @notice Variation: Deposits into vault without merkle proof verification
+     */
+    function deposit(address vault, uint256 amount) external {
+        _deposit(vault, amount, new bytes32[](0));
+    }
+
+    /**
+     * @notice Variation: Deposits all balance into vault without merkle proof verification
+     */
+    function deposit(address vault) external {
+        _deposit(vault, VaultAPI(VaultAPI(vault).token()).balanceOf(msg.sender), new bytes32[](0));
+    }
+
+    /**
+     * @notice Deposits into vault for an specific user with merkle proof verification
      */
     function depositFor(address vault, address recipient, uint256 amount, bytes32[] calldata merkleProof) external {
-        require(authorized(recipient, vault, amount, merkleProof), "Unauthorized user for given vault");
-        require(isBanned[recipient] == false, "Blacklisted user");
+        _depositFor(vault, recipient, amount, merkleProof);
+    }
 
-        VaultAPI(vault).deposit(amount, recipient);
-
-        emit DepositFor(vault, amount, recipient);
+    /**
+     * @notice Deposits into vault for an specific user without merkle proof verification
+     */
+    function depositFor(address vault, address recipient, uint256 amount) external {
+        _depositFor(vault, recipient, amount, new bytes32[](0));
     }
 
     /**
@@ -201,7 +212,7 @@ contract BadgerBouncer is OwnableUpgradeable {
         address guest,
         address vault,
         uint256 amount,
-        bytes32[] calldata merkleProof
+        bytes32[] memory merkleProof
     ) public view returns (bool)
     {
         // Check if guest has been manually added or invitation previously verified
@@ -254,8 +265,32 @@ contract BadgerBouncer is OwnableUpgradeable {
         }
     }
 
-    function _verifyInvitationProof(address account, bytes32 guestRoot, bytes32[] calldata merkleProof) internal pure returns (bool) {
+    function _verifyInvitationProof(address account, bytes32 guestRoot, bytes32[] memory merkleProof) internal pure returns (bool) {
         bytes32 node = keccak256(abi.encodePacked(account));
         return MerkleProofUpgradeable.verify(merkleProof, guestRoot, node);
+    }
+
+    /**
+     * @notice Verifies permission criteria and redirects deposit to designated vault if authorized
+     */
+    function _deposit(address vault, uint256 amount, bytes32[] memory merkleProof) internal {
+        require(authorized(msg.sender, vault, amount, merkleProof), "Unauthorized user for given vault");
+        require(isBanned[msg.sender] == false, "Blacklisted user");
+
+        VaultAPI(vault).deposit(amount, msg.sender);
+
+        emit Deposit(vault, amount, msg.sender);
+    }
+
+    /**
+     * @notice Verifies permission criteria for a specificed user and redirects deposit to designated vault if authorized
+     */
+    function _depositFor(address vault, address recipient, uint256 amount, bytes32[] memory merkleProof) internal {
+        require(authorized(recipient, vault, amount, merkleProof), "Unauthorized user for given vault");
+        require(isBanned[recipient] == false, "Blacklisted user");
+
+        VaultAPI(vault).deposit(amount, recipient);
+
+        emit DepositFor(vault, amount, recipient);
     }
 }
