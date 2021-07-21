@@ -26,6 +26,8 @@ contract BadgerBouncer is OwnableUpgradeable {
     event SetRootForVault(address vault, bytes32 guestListRoot);
     event RemoveRootForVault(address vault);
     event ProveInvitation(address vault, address account, bytes32 guestRoot);
+    event SetUserDepositCap(address vault, uint256 usercap);
+    event SetTotalDepositCap(address vault, uint256 totalcap);
 
     uint256 constant MAX_INT256 = 2**256 - 1;
 
@@ -119,6 +121,24 @@ contract BadgerBouncer is OwnableUpgradeable {
         isBanned[account] = false;
 
         emit Unbanned(account);
+    }
+
+    /**
+     * @notice Sets user deposit cap for a give vault
+     */
+    function setUserDepositCap(address vault, uint256 cap) external onlyOwner {
+        userCaps[vault] = cap;
+
+        emit SetUserDepositCap(vault, cap);
+    }
+
+    /**
+     * @notice Sets total deposit cap for a give vault
+     */
+    function setTotalDepositCap(address vault, uint256 cap) external onlyOwner {
+        totalCaps[vault] = cap;
+
+        emit SetTotalDepositCap(vault, cap);
     }
 
     /**
