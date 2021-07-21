@@ -38,6 +38,8 @@ contract BadgerBouncer is OwnableUpgradeable {
         defaultGuestListRoot = defaultGuestListRoot_;
     }
 
+    /// ===== View Functions =====
+
     function remainingTotalDepositAllowed(address vault) public view returns (uint256) {
         uint256 totalDepositCap = userCaps[vault];
         // If total cap is set to 0, treat as no cap
@@ -57,6 +59,8 @@ contract BadgerBouncer is OwnableUpgradeable {
             return userDepositCap.sub(VaultAPI(vault).balanceOf(user));
         }
     }
+
+    /// ===== Public Actions =====
 
     /**
      * @notice Sets the default GuestList merkle root to a new value
@@ -78,16 +82,6 @@ contract BadgerBouncer is OwnableUpgradeable {
     }
 
     /**
-     * @notice Invite guests or kick them from the party for an specific vault.
-     * @param guests The guests to add or update.
-     * @param invited A flag for each guest at the matching index, inviting or
-     * uninviting the guest.
-     */
-    function setVaultGuests(address vault, address[] calldata guests, bool[] calldata invited) external onlyOwner {
-        _setVaultGuests(vault, guests, invited);
-    }
-
-    /**
      * @notice Sets a vault's Merkle root to 0x0
      */
     function removeRootForVault(address vault) external onlyOwner {
@@ -95,6 +89,18 @@ contract BadgerBouncer is OwnableUpgradeable {
         removedGuestList[vault] = true;
 
         emit RemoveRootForVault(vault);
+    }
+
+    /**
+     * @notice Invite guests or kick them from the party for an specific vault.
+     * @param vault The vault in matter.
+     * @param guests The guests to add or update.
+     * @param invited A flag for each guest at the matching index, inviting or
+     * uninviting the guest.
+     * @notice the guests and invited arrays must have matching lengths.
+     */
+    function setVaultGuests(address vault, address[] calldata guests, bool[] calldata invited) external onlyOwner {
+        _setVaultGuests(vault, guests, invited);
     }
 
     /**
@@ -107,7 +113,7 @@ contract BadgerBouncer is OwnableUpgradeable {
     }
 
     /**
-     * @notice Removed given address from the blacklist
+     * @notice Removes given address from the blacklist
      */
     function unbanAddress(address account) external onlyOwner {
         isBanned[account] = false;
@@ -137,6 +143,30 @@ contract BadgerBouncer is OwnableUpgradeable {
         VaultAPI(vault).deposit(amount, recipient);
 
         emit DepositFor(vault, amount, recipient);
+    }
+
+    /**
+     * @notice Permissionly prove an address is included in a given vault's merkle root, thereby granting access
+     * @notice Note that the list is designed to ONLY EXPAND in future instances
+     * @notice The admin does retain the ability to ban individual addresses
+     * @param vault The vault in matter.
+     * @param account The account's address to check.
+     * @param merkleProof The Merkle proof used to verify access.
+     */
+    function proveInvitation(address vault, address account, bytes32[] calldata merkleProof) external {
+        bytes32 guestRoot = _getVaultGuestListRoot(vault);
+        // Verify Merkle Proof
+        require(_verifyInvitationProof(account, guestRoot, merkleProof), "Guestlist verification");
+
+        address[] memory accounts = new address[](1);
+        bool[] memory invited = new bool[](1);
+
+        accounts[0] = account;
+        invited[0] = true;
+
+        _setVaultGuests(vault, accounts, invited);
+
+        emit ProveInvitation(vault, account, guestRoot);
     }
 
     /**
@@ -177,27 +207,7 @@ contract BadgerBouncer is OwnableUpgradeable {
         }
     }
 
-
-    /**
-     * @notice Permissionly prove an address is included in a given vault's merkle root, thereby granting access
-     * @notice Note that the list is designed to ONLY EXPAND in future instances
-     * @notice The admin does retain the ability to ban individual addresses
-     */
-    function proveInvitation(address vault, address account, bytes32[] calldata merkleProof) public {
-        bytes32 guestRoot = _getVaultGuestListRoot(vault);
-        // Verify Merkle Proof
-        require(_verifyInvitationProof(account, guestRoot, merkleProof), "Guestlist verification");
-
-        address[] memory accounts = new address[](1);
-        bool[] memory invited = new bool[](1);
-
-        accounts[0] = account;
-        invited[0] = true;
-
-        _setVaultGuests(vault, accounts, invited);
-
-        emit ProveInvitation(vault, account, guestRoot);
-    }
+    /// ===== Internal Implementations =====
 
     function _getVaultGuestListRoot(address vault) internal view returns (bytes32) {
         bytes32 guestRoot;
