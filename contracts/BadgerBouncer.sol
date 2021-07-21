@@ -14,6 +14,7 @@ contract BadgerBouncer is OwnableUpgradeable {
     mapping (address => bytes32) public guestListRootOverride;
     mapping (address => bool) public removedGuestList;
     mapping (address => bool) public isBanned;
+    mapping (address => mapping (address => bool)) public vaultGuests;
 
     bytes32 public defaultGuestListRoot;
 
@@ -24,6 +25,7 @@ contract BadgerBouncer is OwnableUpgradeable {
     event Unbanned(address account);
     event SetRootForVault(address vault, bytes32 guestListRoot);
     event RemoveRootForVault(address vault);
+    event ProveInvitation(address vault, address account, bytes32 guestRoot);
 
     uint256 constant MAX_INT256 = 2**256 - 1;
 
@@ -73,6 +75,16 @@ contract BadgerBouncer is OwnableUpgradeable {
         removedGuestList[vault] = false;
 
         emit SetRootForVault(vault, guestListRoot);
+    }
+
+    /**
+     * @notice Invite guests or kick them from the party for an specific vault.
+     * @param guests The guests to add or update.
+     * @param invited A flag for each guest at the matching index, inviting or
+     * uninviting the guest.
+     */
+    function setVaultGuests(address vault, address[] calldata guests, bool[] calldata invited) external onlyOwner {
+        _setVaultGuests(vault, guests, invited);
     }
 
     /**
@@ -142,7 +154,20 @@ contract BadgerBouncer is OwnableUpgradeable {
         bytes32[] calldata merkleProof
     ) public view returns (bool)
     {
-        bool invited = verifyInvitation(guest, vault, merkleProof);
+        // Check if guest has been manually added or invitation previously verified
+        bool invited = vaultGuests[vault][guest];
+        bytes32 guestRoot = _getVaultGuestListRoot(vault);
+
+        // If there is no guest root, all users are invited
+        if (!invited && guestRoot == bytes32(0)) {
+            invited = true;
+        }
+
+        // If the user is not already invited and there is an active guestList, require verification of merkle proof to grant temporary invitation (does not set storage variable)
+        if (!invited && guestRoot != bytes32(0)) {
+            // Will revert on invalid proof
+            invited = _verifyInvitationProof(guest, guestRoot, merkleProof);
+        }
 
         // If the guest proved invitiation via list, verify if the amount to deposit keeps them under the cap
         if (invited && remainingUserDepositAllowed(guest, vault) >= amount && remainingTotalDepositAllowed(vault) >= amount) {
@@ -152,24 +177,51 @@ contract BadgerBouncer is OwnableUpgradeable {
         }
     }
 
+
     /**
      * @notice Permissionly prove an address is included in a given vault's merkle root, thereby granting access
+     * @notice Note that the list is designed to ONLY EXPAND in future instances
+     * @notice The admin does retain the ability to ban individual addresses
      */
-    function verifyInvitation(address account, address vault, bytes32[] calldata merkleProof) public view returns (bool) {
-        // If vault's root is 0x0 and it has been removed: guestlist has been removed -> return true
-        if (guestListRootOverride[vault] == bytes32(0) && removedGuestList[vault] == true) {
-            return true;
-        }
+    function proveInvitation(address vault, address account, bytes32[] calldata merkleProof) public {
+        bytes32 guestRoot = _getVaultGuestListRoot(vault);
+        // Verify Merkle Proof
+        require(_verifyInvitationProof(account, guestRoot, merkleProof), "Guestlist verification");
 
+        address[] memory accounts = new address[](1);
+        bool[] memory invited = new bool[](1);
+
+        accounts[0] = account;
+        invited[0] = true;
+
+        _setVaultGuests(vault, accounts, invited);
+
+        emit ProveInvitation(vault, account, guestRoot);
+    }
+
+    function _getVaultGuestListRoot(address vault) internal view returns (bytes32) {
         bytes32 guestRoot;
+        // If vault's root is 0x0 and it has been removed: guestlist has been removed -> return 0x0
+        if (guestListRootOverride[vault] == bytes32(0) && removedGuestList[vault] == true) {
+            guestRoot = bytes32(0);
         // If vault's root is 0x0 and but it hasn't been removed -> use default Merkle root
-        if (guestListRootOverride[vault] == bytes32(0) && removedGuestList[vault] == false) {
+        } else if (guestListRootOverride[vault] == bytes32(0) && removedGuestList[vault] == false) {
             guestRoot = defaultGuestListRoot;
+        // Else return the specific vault's Merkle root
         } else {
             guestRoot = guestListRootOverride[vault];
         }
-        // Verify Merkle Proof
-        return _verifyInvitationProof(account, guestRoot, merkleProof);
+        return guestRoot;
+    }
+
+    function _setVaultGuests(address vault, address[] memory _guests, bool[] memory _invited) internal {
+        require(_guests.length == _invited.length, "Input arrays' length mismatch");
+        for (uint256 i = 0; i < _guests.length; i++) {
+            if (_guests[i] == address(0)) {
+                break;
+            }
+            vaultGuests[vault][_guests[i]] = _invited[i];
+        }
     }
 
     function _verifyInvitationProof(address account, bytes32 guestRoot, bytes32[] calldata merkleProof) internal pure returns (bool) {
