@@ -17,85 +17,85 @@ def vault(gov, token, Vault):
     yield vault
 
 
-# def test_bouncer_permissions(gov, rando, badgerBouncer, vault):
-#     # Check that gov is owner (deployer of badgerBouncer):
-#     assert gov.address == badgerBouncer.owner()
+def test_bouncer_permissions(gov, rando, badgerBouncer, vault):
+    # Check that gov is owner (deployer of badgerBouncer):
+    assert gov.address == badgerBouncer.owner()
 
-#     # Only owner can set guests
-#     with brownie.reverts():
-#         badgerBouncer.setVaultGuests(vault.address, [rando.address], [True], {"from": rando})
+    # Only owner can set guests
+    with brownie.reverts():
+        badgerBouncer.setVaultGuests(vault.address, [rando.address], [True], {"from": rando})
 
-#     badgerBouncer.setVaultGuests(vault.address, [rando.address], [True], {"from": gov})
-#     assert badgerBouncer.vaultGuests(vault.address, rando.address) == True
+    badgerBouncer.setVaultGuests(vault.address, [rando.address], [True], {"from": gov})
+    assert badgerBouncer.vaultGuests(vault.address, rando.address) == True
 
-#     # Only owner can set default guestRoot
-#     with brownie.reverts():
-#         badgerBouncer.setDefaultGuestListRoot(
-#             "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a", 
-#             {"from": rando}
-#         )
+    # Only owner can set default guestRoot
+    with brownie.reverts():
+        badgerBouncer.setDefaultGuestListRoot(
+            "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a", 
+            {"from": rando}
+        )
 
-#     badgerBouncer.setDefaultGuestListRoot(
-#         "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a", 
-#         {"from": gov}
-#     )
-#     assert badgerBouncer.defaultGuestListRoot() == "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
+    badgerBouncer.setDefaultGuestListRoot(
+        "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a", 
+        {"from": gov}
+    )
+    assert badgerBouncer.defaultGuestListRoot() == "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
 
 
-#     # Only owner can set vault's guestRoot
-#     with brownie.reverts():
-#         badgerBouncer.setRootForVault(
-#             vault.address,
-#             "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a", 
-#             {"from": rando}
-#         )
+    # Only owner can set vault's guestRoot
+    with brownie.reverts():
+        badgerBouncer.setRootForVault(
+            vault.address,
+            "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a", 
+            {"from": rando}
+        )
 
-#     badgerBouncer.setRootForVault(
-#         vault.address,
-#         "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a", 
-#         {"from": gov}
-#     )
-#     assert badgerBouncer.guestListRootOverride(vault.address) == "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
-#     assert badgerBouncer.removedGuestList(vault.address) == False
+    badgerBouncer.setRootForVault(
+        vault.address,
+        "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a", 
+        {"from": gov}
+    )
+    assert badgerBouncer.guestListRootOverride(vault.address) == "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a"
+    assert badgerBouncer.removedGuestList(vault.address) == False
 
-#     # Only owner can remove vault's guestRoot
-#     with brownie.reverts():
-#         badgerBouncer.removeRootForVault(vault.address, {"from": rando})
+    # Only owner can remove vault's guestRoot
+    with brownie.reverts():
+        badgerBouncer.removeRootForVault(vault.address, {"from": rando})
 
-#     badgerBouncer.removeRootForVault(vault.address, {"from": gov})
+    badgerBouncer.removeRootForVault(vault.address, {"from": gov})
 
-#     assert badgerBouncer.guestListRootOverride(vault.address) == "0x0"
-#     assert badgerBouncer.removedGuestList(vault.address) == True
+    assert badgerBouncer.guestListRootOverride(vault.address) == "0x0"
+    assert badgerBouncer.removedGuestList(vault.address) == True
 
-#     # Only owner can ban an address
-#     with brownie.reverts():
-#         badgerBouncer.banAddress(rando.address, {"from": rando})
+    # Only owner can ban an address
+    with brownie.reverts():
+        badgerBouncer.banAddress(rando.address, {"from": rando})
 
-#     badgerBouncer.banAddress(rando.address, {"from": gov})
+    badgerBouncer.banAddress(rando.address, {"from": gov})
 
-#     assert badgerBouncer.isBanned(rando.address) == True
+    assert badgerBouncer.isBanned(rando.address) == True
 
-#     # Only owner can unban an address
-#     with brownie.reverts():
-#         badgerBouncer.unbanAddress(rando.address, {"from": rando})
+    # Only owner can unban an address
+    with brownie.reverts():
+        badgerBouncer.unbanAddress(rando.address, {"from": rando})
 
-#     badgerBouncer.unbanAddress(rando.address, {"from": gov})
+    badgerBouncer.unbanAddress(rando.address, {"from": gov})
 
-#     assert badgerBouncer.isBanned(rando.address) == False
+    assert badgerBouncer.isBanned(rando.address) == False
 
-#     # Only owner can set userDepositCap
-#     with brownie.reverts():
-#         badgerBouncer.setUserDepositCap(vault.address, 1e18, {"from": rando})
+    # Only owner can set userDepositCap
+    with brownie.reverts():
+        badgerBouncer.setUserDepositCap(vault.address, 1e18, {"from": rando})
 
-#     badgerBouncer.setUserDepositCap(vault.address, 1e18, {"from": gov})
-#     assert badgerBouncer.userCaps(vault.address) == 1e18
+    badgerBouncer.setUserDepositCap(vault.address, 1e18, {"from": gov})
+    assert badgerBouncer.userCaps(vault.address) == 1e18
 
-#     # Only owner can set totalDepositCap
-#     with brownie.reverts():
-#         badgerBouncer.setTotalDepositCap(vault.address, 100e18, {"from": rando})
+    # Only owner can set totalDepositCap
+    with brownie.reverts():
+        badgerBouncer.setTotalDepositCap(vault.address, 100e18, {"from": rando})
 
-#     badgerBouncer.setTotalDepositCap(vault.address, 100e18, {"from": gov})
-#     assert badgerBouncer.totalCaps(vault.address) == 100e18
+    badgerBouncer.setTotalDepositCap(vault.address, 100e18, {"from": gov})
+    assert badgerBouncer.totalCaps(vault.address) == 100e18
 
 
 
@@ -106,7 +106,7 @@ def test_manual_bouncer_flow(gov, rando, vault, token, badgerBouncer):
     # User can deposit while badgerBouncer == Address Zero
     balance = token.balanceOf(gov)
     token.transfer(rando.address, balance, {"from": gov})
-    token.approve(badgerBouncer.address, balance, {"from": rando})
+    token.approve(badgerBouncer.address, balance * 100, {"from": rando})
 
     chain.sleep(10)
     chain.mine()
@@ -193,12 +193,38 @@ def test_manual_bouncer_flow(gov, rando, vault, token, badgerBouncer):
     # User gets banned
     badgerBouncer.unbanAddress(rando.address, {"from": gov})
 
-    # Unbanned user can deposit
+    # Unbanned user can deposit while on the guestlist
     badgerBouncer.deposit(vault.address, balance // 4, {"from": rando})
 
     assert token.balanceOf(vault) == balance // 2
     assert vault.pricePerShare() == 10 ** token.decimals()  # 1:1 price
     assert vault.balanceOf(rando.address) == balance // 2
+
+    # User is removed from badgerBouncer manually
+    badgerBouncer.setVaultGuests(vault.address, [rando.address], [False], {"from": gov})
+    assert badgerBouncer.vaultGuests(vault.address, rando.address) == False
+
+    chain.sleep(10)
+    chain.mine()
+
+    # User removed from guestlist can't deposit
+    with brownie.reverts():
+        badgerBouncer.deposit(vault.address, balance // 4, {"from": rando})
+
+    # Remove guestRoot for vault
+    badgerBouncer.removeRootForVault(vault.address, {"from": gov})
+    assert badgerBouncer.guestListRootOverride(vault.address) == "0x0"
+    assert badgerBouncer.removedGuestList(vault.address) == True
+
+    # User, not on guestlist, can deposit since guestRoot for vault is set to 0x0 and 
+    # removedGuestList flag is set to True
+    badgerBouncer.deposit(vault.address, balance // 2, {"from": rando})
+
+    assert token.balanceOf(vault) == balance
+    assert vault.pricePerShare() == 10 ** token.decimals()  # 1:1 price
+    assert vault.balanceOf(rando.address) == balance
+
+
 
 
 
