@@ -3,8 +3,8 @@ import brownie
 import json
 from brownie import ZERO_ADDRESS, chain, web3, accounts
 
-# with open('merkle/merkle_guestlist_test.json') as f:
-#     testDistribution = json.load(f)
+with open('merkle/merkle_guestlist_test.json') as f:
+    testDistribution = json.load(f)
 
 @pytest.fixture
 def vault(gov, token, Vault):
@@ -225,62 +225,77 @@ def test_manual_bouncer_flow(gov, rando, vault, token, badgerBouncer):
     assert vault.balanceOf(rando.address) == balance
 
 
+def test_merkle_bouncer_flow(gov, rando, vault, token, badgerBouncer):
+    # Approve access of badgerBouncer to vault
+    vault.approveContractAccess(badgerBouncer.address, {"from": gov})
+
+    balance = token.balanceOf(gov)
+
+    # Set guestRoot equal to merkleRoot
+    merkleRoot = testDistribution["merkleRoot"]
+    badgerBouncer.setRootForVault(vault.address, merkleRoot, {"from": gov})
+
+    with brownie.reverts():
+        badgerBouncer.deposit(vault.address, balance // 4, {"from": gov})
+
+    # Test merkle verification upon deposit
+    users = [
+        web3.toChecksumAddress("0x8107b00171a02f83D7a17f62941841C29c3ae60F"),
+        web3.toChecksumAddress("0x716722C80757FFF31DA3F3C392A1736b7cfa3A3e"),
+        web3.toChecksumAddress("0xE2e4F2A725E42D0F0EF6291F46c430F963482001"),
+    ]
+
+    for user in users:
+        user = accounts.at(user, force=True)
+
+        claim = testDistribution["claims"][user]
+        proof = claim["proof"]
+
+        # Gov transfers tokens to user
+        token.transfer(user.address, balance // 6, {"from": gov})
+        token.approve(badgerBouncer, balance * 100, {"from": user})
+
+        badgerBouncer.deposit(vault.address, balance // 10, proof, {"from": user})
+        assert vault.balanceOf(user.address) == balance // 10 # Since 1:1 price
 
 
+    # Test depositing after proveInvitation of a few users
+    users = [
+        web3.toChecksumAddress("0x1fafb618033Fb07d3a99704a47451971976CB586"),
+        web3.toChecksumAddress("0xCf7760E00327f608543c88526427b35049b58984"),
+        web3.toChecksumAddress("0xb43b8B43dE2e59A2B44caa2910E31a4E835d4068"),
+    ]
 
-# def test_merkle_guestlist_flow(gov, rando, vault, token, badgerBouncer):
-#     balance = token.balanceOf(gov)
+    for user in users:
+        user = accounts.at(user, force=True)
 
-#     # Set guestRoot equal to merkleRoot
-#     merkleRoot = testDistribution["merkleRoot"]
-#     badgerBouncer.setGuestRoot(merkleRoot, {"from": gov})
+        claim = testDistribution["claims"][user]
+        proof = claim["proof"]
 
-#     badgerBouncer.setUserDepositCap(balance, {"from": gov})
-#     assert badgerBouncer.userDepositCap() == balance
+        # Gov transfers tokens to user
+        token.transfer(user.address, balance // 6, {"from": gov})
+        token.approve(badgerBouncer, balance * 100, {"from": user})
 
+        tx = badgerBouncer.proveInvitation(vault.address, user.address, proof)
+        assert tx.events[0]["vault"] == vault.address
+        assert tx.events[0]["guestRoot"] == merkleRoot
+        assert tx.events[0]["account"] == user.address
 
-#     # Test merkle verification upon deposit
-#     users = [
-#         web3.toChecksumAddress("0x8107b00171a02f83D7a17f62941841C29c3ae60F"),
-#         web3.toChecksumAddress("0x716722C80757FFF31DA3F3C392A1736b7cfa3A3e"),
-#         web3.toChecksumAddress("0xE2e4F2A725E42D0F0EF6291F46c430F963482001"),
-#     ]
+        # User deposits 1 token through wrapper (without proof)
+        badgerBouncer.deposit(vault.address, balance // 10, {"from": user})
+        assert vault.balanceOf(user.address) == balance // 10 # Since 1:1 price
 
-#     for user in users:
-#         user = accounts.at(user, force=True)
+# TODO: test variations of deposit functions
+def test_deposit_functions():
 
-#         claim = testDistribution["claims"][user]
-#         proof = claim["proof"]
+    assert True
 
-#         # Gov transfers tokens to user
-#         token.transfer(user.address, balance // 6, {"from": gov})
-#         token.approve(vault, balance, {"from": user})
+# TODO: test that deposit caps work
+def test_deposit_caps():
 
-#         vault.deposit(balance // 6, user.address, proof, {"from": user})
-#         assert vault.balanceOf(user.address) == balance // 6 # Since 1:1 price
+    assert True
 
+# TODO: test multiple vaults
+def test_deposit_caps():
 
-#     # Test depositing after proveInvitation of a few users
-#     users = [
-#         web3.toChecksumAddress("0x1fafb618033Fb07d3a99704a47451971976CB586"),
-#         web3.toChecksumAddress("0xCf7760E00327f608543c88526427b35049b58984"),
-#         web3.toChecksumAddress("0xb43b8B43dE2e59A2B44caa2910E31a4E835d4068"),
-#     ]
-
-#     for user in users:
-#         user = accounts.at(user, force=True)
-
-#         claim = testDistribution["claims"][user]
-#         proof = claim["proof"]
-
-#         # Gov transfers tokens to user
-#         token.transfer(user.address, balance // 6, {"from": gov})
-#         token.approve(vault, balance, {"from": user})
-
-#         tx = badgerBouncer.proveInvitation(user.address, proof)
-#         assert tx.events[0]["guestRoot"] == merkleRoot
-#         assert tx.events[0]["account"] == user.address
-
-#         # User deposits 1 token through wrapper (without proof)
-#         vault.deposit(balance // 6, {"from": user})
-#         assert vault.balanceOf(user.address) == balance // 6 # Since 1:1 price
+    assert True

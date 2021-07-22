@@ -308,6 +308,8 @@ contract BadgerBouncer is OwnableUpgradeable {
             token.safeApprove(address(vault), MAX_UINT256);
         }
 
+        token.safeTransferFrom(msg.sender, address(this), amount);
+
         VaultAPI(vault).deposit(amount, recipient);
 
         emit DepositFor(vault, amount, recipient);
