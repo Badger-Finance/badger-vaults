@@ -4,10 +4,12 @@ pragma solidity ^0.6.12;
 import "deps/@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
 import "deps/@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "deps/@openzeppelin/contracts-upgradeable/cryptography/MerkleProofUpgradeable.sol";
+import "deps/@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
 import {VaultAPI} from "./BaseStrategy.sol";
 
 contract BadgerBouncer is OwnableUpgradeable {
     using SafeMathUpgradeable for uint256;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     mapping (address => uint256) public userCaps;
     mapping (address => uint256) public totalCaps;
@@ -29,7 +31,7 @@ contract BadgerBouncer is OwnableUpgradeable {
     event SetUserDepositCap(address vault, uint256 usercap);
     event SetTotalDepositCap(address vault, uint256 totalcap);
 
-    uint256 constant MAX_INT256 = 2**256 - 1;
+    uint256 constant MAX_UINT256 = 2**256 - 1;
 
     /**
      * @notice Create the Badger Bouncer, setting the message sender as
@@ -46,7 +48,7 @@ contract BadgerBouncer is OwnableUpgradeable {
         uint256 totalDepositCap = userCaps[vault];
         // If total cap is set to 0, treat as no cap
         if (totalDepositCap == 0) {
-            return MAX_INT256;
+            return MAX_UINT256;
         } else {
             return totalDepositCap.sub(VaultAPI(vault).totalSupply()); // Only holds for PPS 1:1, must adapt.
         }
@@ -56,7 +58,7 @@ contract BadgerBouncer is OwnableUpgradeable {
         uint256 userDepositCap = userCaps[vault];
         // If user cap is set to 0, treat as no cap
         if (userDepositCap == 0) {
-            return MAX_INT256;
+            return MAX_UINT256;
         } else {
             return userDepositCap.sub(VaultAPI(vault).balanceOf(user));
         }
@@ -159,7 +161,7 @@ contract BadgerBouncer is OwnableUpgradeable {
      * @notice Variation: Deposits all balance into vault without merkle proof verification
      */
     function deposit(address vault) external {
-        _deposit(vault, VaultAPI(VaultAPI(vault).token()).balanceOf(msg.sender), new bytes32[](0));
+        _deposit(vault, IERC20Upgradeable(VaultAPI(vault).token()).balanceOf(msg.sender), new bytes32[](0));
     }
 
     /**
@@ -224,7 +226,8 @@ contract BadgerBouncer is OwnableUpgradeable {
             invited = true;
         }
 
-        // If the user is not already invited and there is an active guestList, require verification of merkle proof to grant temporary invitation (does not set storage variable)
+        // If the user is not already invited and there is an active guestList,
+        // require verification of merkle proof to grant temporary invitation (does not set storage variable)
         if (!invited && guestRoot != bytes32(0)) {
             // Will revert on invalid proof
             invited = _verifyInvitationProof(guest, guestRoot, merkleProof);
@@ -277,6 +280,15 @@ contract BadgerBouncer is OwnableUpgradeable {
         require(authorized(msg.sender, vault, amount, merkleProof), "Unauthorized user for given vault");
         require(isBanned[msg.sender] == false, "Blacklisted user");
 
+        IERC20Upgradeable token = IERC20Upgradeable(VaultAPI(vault).token());
+
+        if (token.allowance(address(this), address(vault)) < amount) {
+            token.safeApprove(address(vault), 0); // Avoid issues with some tokens requiring 0
+            token.safeApprove(address(vault), MAX_UINT256);
+        }
+
+        token.safeTransferFrom(msg.sender, address(this), amount);
+
         VaultAPI(vault).deposit(amount, msg.sender);
 
         emit Deposit(vault, amount, msg.sender);
@@ -288,6 +300,13 @@ contract BadgerBouncer is OwnableUpgradeable {
     function _depositFor(address vault, address recipient, uint256 amount, bytes32[] memory merkleProof) internal {
         require(authorized(recipient, vault, amount, merkleProof), "Unauthorized user for given vault");
         require(isBanned[recipient] == false, "Blacklisted user");
+
+        IERC20Upgradeable token = IERC20Upgradeable(VaultAPI(vault).token());
+
+        if (token.allowance(address(this), address(vault)) < amount) {
+            token.safeApprove(address(vault), 0); // Avoid issues with some tokens requiring 0
+            token.safeApprove(address(vault), MAX_UINT256);
+        }
 
         VaultAPI(vault).deposit(amount, recipient);
 
