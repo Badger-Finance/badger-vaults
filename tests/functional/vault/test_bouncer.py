@@ -190,7 +190,7 @@ def test_manual_bouncer_flow(gov, rando, vault, token, badgerBouncer):
     with brownie.reverts():
         badgerBouncer.deposit(vault.address, balance // 4, {"from": rando})
 
-    # User gets banned
+    # User gets unbanned
     badgerBouncer.unbanAddress(rando.address, {"from": gov})
 
     # Unbanned user can deposit while on the guestlist
@@ -286,9 +286,61 @@ def test_merkle_bouncer_flow(gov, rando, vault, token, badgerBouncer):
         assert vault.balanceOf(user.address) == balance // 10 # Since 1:1 price
 
 # TODO: test variations of deposit functions
-def test_deposit_functions():
+def test_deposit_functions(gov, vault, token, badgerBouncer):
+    # Approve access of badgerBouncer to vault
+    vault.approveContractAccess(badgerBouncer.address, {"from": gov})
 
-    assert True
+    user = accounts.at("0x8107b00171a02f83D7a17f62941841C29c3ae60F", force = True)
+    claim = testDistribution["claims"][user]
+    proof = claim["proof"]
+    user2 = accounts.at("0xCf7760E00327f608543c88526427b35049b58984", force = True)
+    claim2 = testDistribution["claims"][user2]
+    proof2 = claim2["proof"]
+
+    # User can deposit while badgerBouncer == Address Zero
+    balance = token.balanceOf(gov)
+    token.transfer(user.address, balance, {"from": gov})
+    token.approve(badgerBouncer.address, balance * 100, {"from": user})
+
+    chain.sleep(10)
+    chain.mine()
+
+    # Initially, there is no guestlist on vault nor default root so all deposits are allowed
+    assert badgerBouncer.defaultGuestListRoot() == "0x0"
+    assert badgerBouncer.guestListRootOverride(vault.address) == "0x0"
+
+    # User deposits all without proof
+    chain.snapshot() # Take snapshot to revert to
+    badgerBouncer.deposit(vault.address, {"from": user})
+    assert vault.balanceOf(user.address) == balance # Since 1:1 price
+    chain.revert()
+
+    # User deposits an specific amount without proof
+    chain.snapshot() # Take snapshot to revert to
+    badgerBouncer.deposit(vault.address, balance // 2, {"from": user})
+    assert vault.balanceOf(user.address) == balance // 2 # Since 1:1 price
+    chain.revert()
+
+    # User deposits an specific amount with proof
+    chain.snapshot() # Take snapshot to revert to
+    badgerBouncer.setRootForVault(vault.address, testDistribution["merkleRoot"], {"from": gov})
+    badgerBouncer.deposit(vault.address, balance // 2, proof, {"from": user})
+    assert vault.balanceOf(user.address) == balance // 2 # Since 1:1 price
+    chain.revert()
+
+    # User deposits for another user without proof
+    chain.snapshot() # Take snapshot to revert to
+    badgerBouncer.depositFor(vault.address, user2.address, balance // 2, {"from": user})
+    assert vault.balanceOf(user2.address) == balance // 2 # Since 1:1 price
+    chain.revert()
+
+    # User deposits for another user with proof
+    chain.snapshot() # Take snapshot to revert to
+    badgerBouncer.setRootForVault(vault.address, testDistribution["merkleRoot"], {"from": gov})
+    badgerBouncer.depositFor(vault.address, user2.address, balance // 2, proof2, {"from": user})
+    assert vault.balanceOf(user2.address) == balance // 2 # Since 1:1 price
+    chain.revert()
+
 
 # TODO: test that deposit caps work
 def test_deposit_caps():
