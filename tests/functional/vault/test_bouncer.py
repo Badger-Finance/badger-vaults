@@ -285,7 +285,8 @@ def test_merkle_bouncer_flow(gov, rando, vault, token, badgerBouncer):
         badgerBouncer.deposit(vault.address, balance // 10, {"from": user})
         assert vault.balanceOf(user.address) == balance // 10 # Since 1:1 price
 
-# TODO: test variations of deposit functions
+
+
 def test_deposit_functions(gov, vault, token, badgerBouncer):
     # Approve access of badgerBouncer to vault
     vault.approveContractAccess(badgerBouncer.address, {"from": gov})
@@ -297,7 +298,6 @@ def test_deposit_functions(gov, vault, token, badgerBouncer):
     claim2 = testDistribution["claims"][user2]
     proof2 = claim2["proof"]
 
-    # User can deposit while badgerBouncer == Address Zero
     balance = token.balanceOf(gov)
     token.transfer(user.address, balance, {"from": gov})
     token.approve(badgerBouncer.address, balance * 100, {"from": user})
@@ -342,7 +342,6 @@ def test_deposit_functions(gov, vault, token, badgerBouncer):
     chain.revert()
 
 
-# TODO: test that deposit caps work
 def test_deposit_caps(gov, vault, token, badgerBouncer):
     # Approve access of badgerBouncer to vault
     vault.approveContractAccess(badgerBouncer.address, {"from": gov})
@@ -412,7 +411,132 @@ def test_deposit_caps(gov, vault, token, badgerBouncer):
 
 
 
-# TODO: test multiple vaults
-def test_deposit_caps():
+def test_multiple_vaults(create_vault, create_token, gov, badgerBouncer):
+    # Creation of tokens and vaults
+    token1 = create_token()
+    vault1 = create_vault(token1, version="1.0.0")
+    token2 = create_token()
+    vault2 = create_vault(token2, version="1.0.0")
+    token3 = create_token()
+    vault3 = create_vault(token3, version="1.0.0")
 
-    assert True
+    # Approve access of badgerBouncer to vaults
+    vault1.approveContractAccess(badgerBouncer.address, {"from": gov})
+    vault2.approveContractAccess(badgerBouncer.address, {"from": gov})
+    vault3.approveContractAccess(badgerBouncer.address, {"from": gov})
+
+    user = accounts.at("0x8107b00171a02f83D7a17f62941841C29c3ae60F", force = True)
+    claim = testDistribution["claims"][user]
+    proof = claim["proof"]
+
+    # Gov transfers tokens to user
+    balance1 = token1.balanceOf(gov)
+    token1.transfer(user.address, balance1, {"from": gov})
+    token1.approve(badgerBouncer.address, balance1 * 100, {"from": user})
+    balance2 = token2.balanceOf(gov)
+    token2.transfer(user.address, balance2, {"from": gov})
+    token2.approve(badgerBouncer.address, balance2 * 100, {"from": user})
+    balance3 = token3.balanceOf(gov)
+    token3.transfer(user.address, balance3, {"from": gov})
+    token3.approve(badgerBouncer.address, balance3 * 100, {"from": user})
+
+    chain.sleep(10)
+    chain.mine()
+
+    # User can deposit on three vaults since they don't have guestlist
+    badgerBouncer.deposit(vault1.address, balance1 // 4, {"from": user})
+    badgerBouncer.deposit(vault2.address, balance2 // 4, {"from": user})
+    badgerBouncer.deposit(vault3.address, balance3 // 4, {"from": user})
+
+    chain.sleep(10)
+    chain.mine()
+
+    # Guestlist is added as the default
+    badgerBouncer.setDefaultGuestListRoot(testDistribution["merkleRoot"], {"from": gov})
+
+    # User can't deposit in any vault without a proof
+    with brownie.reverts():
+        badgerBouncer.deposit(vault1.address, balance1 // 4, {"from": user})
+    with brownie.reverts():
+        badgerBouncer.deposit(vault2.address, balance2 // 4, {"from": user})
+    with brownie.reverts():
+        badgerBouncer.deposit(vault3.address, balance3 // 4, {"from": user})
+
+    # User can deposit with a proof
+    badgerBouncer.deposit(vault1.address, balance1 // 4, proof, {"from": user})
+    badgerBouncer.deposit(vault2.address, balance2 // 4, proof, {"from": user})
+    badgerBouncer.deposit(vault3.address, balance3 // 4, proof, {"from": user})
+
+    chain.sleep(10)
+    chain.mine()
+
+    # Default guestlist is removed
+    badgerBouncer.setDefaultGuestListRoot("0x0", {"from": gov})
+
+    # Guestlist is added for vault1
+    badgerBouncer.setRootForVault(vault1.address, testDistribution["merkleRoot"], {"from": gov})
+
+    # User can't deposit in vault1 without a proof but can on the rest
+    with brownie.reverts():
+        badgerBouncer.deposit(vault1.address, balance1 // 4, {"from": user})
+
+    badgerBouncer.deposit(vault2.address, balance2 // 4, {"from": user})
+    badgerBouncer.deposit(vault3.address, balance3 // 4, {"from": user})
+
+    chain.sleep(10)
+    chain.mine()
+ 
+    # User is added to vault1's guestlist manually
+    badgerBouncer.setVaultGuests(vault1.address, [user.address], [True], {"from": gov})
+    assert badgerBouncer.vaultGuests(vault1.address, user.address) == True
+
+    # Guestlist is added for vault2
+    badgerBouncer.setRootForVault(vault2.address, testDistribution["merkleRoot"], {"from": gov})
+
+    # User can't deposit in vault1 with a wrong proof but can on the rest
+    with brownie.reverts():
+        badgerBouncer.deposit(vault2.address, balance2 // 4, ["0x1a1a"], {"from": user})
+
+    badgerBouncer.deposit(vault1.address, balance1 // 4, {"from": user})
+    badgerBouncer.deposit(vault3.address, balance3 // 4, {"from": user})
+
+    chain.sleep(10)
+    chain.mine()
+
+    # User is added back to vault2's guestlist manually
+    badgerBouncer.setVaultGuests(vault2.address, [user.address], [True], {"from": gov})
+    assert badgerBouncer.vaultGuests(vault2.address, user.address) == True
+
+    # User gets completely banned and can't deposit on any vault
+    badgerBouncer.banAddress(user.address, {"from": gov})
+
+    with brownie.reverts():
+        badgerBouncer.deposit(vault1.address, balance1 // 4, {"from": user})
+    with brownie.reverts():
+        badgerBouncer.deposit(vault2.address, balance2 // 4, {"from": user})
+    with brownie.reverts():
+        badgerBouncer.deposit(vault3.address, balance3 // 4, {"from": user})
+
+    # User gets unbanned
+    badgerBouncer.unbanAddress(user.address, {"from": gov})
+
+    chain.sleep(10)
+    chain.mine()
+
+    # Guestlist is added for vault3 for which user has no proof
+    badgerBouncer.setRootForVault(
+        vault3.address,
+        "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a", 
+        {"from": gov}
+    )
+
+    # User can't deposit in vault3 (using wrong proof) but can on the rest
+    with brownie.reverts():
+        badgerBouncer.deposit(vault3.address, balance3 // 4, proof, {"from": user})
+
+    badgerBouncer.deposit(vault1.address, balance1 // 4, {"from": user})
+    badgerBouncer.deposit(vault2.address, balance2 // 4, {"from": user})
+
+    assert vault1.balanceOf(user.address) == balance1 # Since 1:1 price
+    assert vault2.balanceOf(user.address) == balance2 # Since 1:1 price
+    assert vault3.balanceOf(user.address) == balance3 # Since 1:1 price
