@@ -5,6 +5,7 @@ import "deps/@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
 import "deps/@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "deps/@openzeppelin/contracts-upgradeable/cryptography/MerkleProofUpgradeable.sol";
 import "deps/@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
+import "deps/@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {VaultAPI} from "./BaseStrategy.sol";
 
 contract BadgerBouncer is OwnableUpgradeable {
@@ -50,7 +51,7 @@ contract BadgerBouncer is OwnableUpgradeable {
         if (totalDepositCap == 0) {
             return MAX_UINT256;
         } else {
-            return totalDepositCap.sub(VaultAPI(vault).totalSupply()); // Only holds for PPS 1:1, must adapt.
+            return totalDepositCap.sub(VaultAPI(vault).totalAssets());
         }
     }
 
@@ -60,7 +61,8 @@ contract BadgerBouncer is OwnableUpgradeable {
         if (userDepositCap == 0) {
             return MAX_UINT256;
         } else {
-            return userDepositCap.sub(VaultAPI(vault).balanceOf(user));
+            ERC20Upgradeable token = ERC20Upgradeable(VaultAPI(vault).token());
+            return userDepositCap.sub(VaultAPI(vault).balanceOf(user).mul(10 ** uint8(token.decimals())).div(VaultAPI(vault).pricePerShare()));
         }
     }
 
