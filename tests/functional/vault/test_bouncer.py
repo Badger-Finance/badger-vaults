@@ -97,6 +97,13 @@ def test_bouncer_permissions(gov, rando, badgerBouncer, vault):
     badgerBouncer.setTotalDepositCap(vault.address, 100e18, {"from": gov})
     assert badgerBouncer.totalCaps(vault.address) == 100e18
 
+    # Transfer ownership
+    badgerBouncer.transferOwnership(rando.address, {"from": gov})
+    assert rando.address == badgerBouncer.owner()
+
+    # New owner can perform owner tasks
+    badgerBouncer.setTotalDepositCap(vault.address, 0, {"from": rando})
+
 
 
 def test_manual_bouncer_flow(gov, rando, vault, token, badgerBouncer):

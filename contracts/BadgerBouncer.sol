@@ -46,7 +46,7 @@ contract BadgerBouncer is OwnableUpgradeable {
     /// ===== View Functions =====
 
     function remainingTotalDepositAllowed(address vault) public view returns (uint256) {
-        uint256 totalDepositCap = userCaps[vault];
+        uint256 totalDepositCap = totalCaps[vault];
         // If total cap is set to 0, treat as no cap
         if (totalDepositCap == 0) {
             return MAX_UINT256;
