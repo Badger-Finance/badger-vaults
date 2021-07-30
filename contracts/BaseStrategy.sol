@@ -27,6 +27,10 @@ interface VaultAPI is IERC20 {
 
     function apiVersion() external pure returns (string memory);
 
+    function rewards() external view returns (address);
+
+    function performanceFee() external view returns (uint256);
+
     function permit(
         address owner,
         address spender,
@@ -154,7 +158,11 @@ interface StrategyAPI {
 
     function harvestTrigger(uint256 callCost) external view returns (bool);
 
-    function harvest() external;
+    // NOTE: Badger Change
+    function harvest() external returns (uint256);
+
+    // NOTE: Badger Change
+    event Harvest(uint256 harvested, uint256 indexed blockNumber);
 
     event Harvested(uint256 profit, uint256 loss, uint256 debtPayment, uint256 debtOutstanding);
 }
@@ -243,6 +251,8 @@ abstract contract BaseStrategy {
     IERC20 public want;
 
     // So indexers can keep track of this
+    event Harvest(uint256 harvested, uint256 indexed blockNumber);
+
     event Harvested(uint256 profit, uint256 loss, uint256 debtPayment, uint256 debtOutstanding);
 
     event UpdatedStrategist(address newStrategist);
@@ -744,8 +754,8 @@ abstract contract BaseStrategy {
      *  called to report to the Vault on the Strategy's position, especially if
      *  any losses have occurred.
      */
-    function harvest() external onlyKeepers {
-        uint256 profit = 0;
+    function harvest() external onlyKeepers returns (uint256 profit) {
+        profit = 0;
         uint256 loss = 0;
         uint256 debtOutstanding = vault.debtOutstanding();
         uint256 debtPayment = 0;
@@ -780,6 +790,9 @@ abstract contract BaseStrategy {
         }
 
         emit Harvested(profit, loss, debtPayment, debtOutstanding);
+        emit Harvest(profit, block.number); // Badger Compatible event
+
+        return profit; // Return profit so we can estimate it for private tx
     }
 
     /**
@@ -888,5 +901,35 @@ abstract contract BaseStrategy {
         for (uint256 i; i < _protectedTokens.length; i++) require(_token != _protectedTokens[i], "!protected");
 
         IERC20(_token).safeTransfer(governance(), IERC20(_token).balanceOf(address(this)));
+    }
+
+    /// @dev Helper function to process an arbitrary fee
+    /// @dev If the fee is active, transfers a given portion in basis points of the specified value to the recipient
+    /// @return The fee that was taken
+    function _processFee(
+        address token,
+        uint256 amount,
+        uint256 feeBps,
+        address recipient
+    ) internal returns (uint256) {
+        if (feeBps == 0) {
+            return 0;
+        }
+        uint256 fee = amount.mul(feeBps).div(10_000);
+        IERC20(token).safeTransfer(recipient, fee);
+        return fee;
+    }
+
+    /// @dev used to manage the governance and strategist fee on earned rewards, make sure to use it to get paid!
+    /// @notice want and vault shares are automatically processed via Vault.report, this is only for extra rewards
+    function _processRewardsFees(uint256 _amount, address _token) internal returns (uint256 governanceRewardsFee, uint256 strategistRewardsFee) {
+        require(_token != address(want), "!want");
+        require(_token != address(vault), "!shares");
+
+        // Rewards for Management / DAO
+        governanceRewardsFee = _processFee(_token, _amount, VaultAPI(vault).performanceFee(), VaultAPI(vault).rewards());
+
+        // Rewards in Strat = Strategist
+        strategistRewardsFee = _processFee(_token, _amount, VaultAPI(vault).strategies(address(this)).performanceFee, rewards);
     }
 }
