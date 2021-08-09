@@ -64,9 +64,11 @@ contract BadgerRegistryV2 {
 
   event Set(string key, address at);
   event AddKey(string key);
+  event AddVersion(string version);
 
   // Known constants you can use
   string[] public keys; // Notice, you don't have a guarantee of the key being there, it's just a utility
+  string[] public versions; // Notice, you don't have a guarantee of the key being there, it's just a utility
 
 
   //@dev View Data for each strat we will return
@@ -109,8 +111,8 @@ contract BadgerRegistryV2 {
   constructor (address _governance) public {
     governance = _governance;
 
-    keys.push("v1"); //For v1
-    keys.push("v2"); //For v2
+    versions.push("v1"); //For v1
+    versions.push("v2"); //For v2
   }
 
   function setGovernance(address _newGov) public {
@@ -118,20 +120,28 @@ contract BadgerRegistryV2 {
     governance = _newGov;
   }
 
+  // Utility function to add Versions for Vaults, NOTE: No guarantee that it will be properly used
+  function addVersions(string memory version) public {
+    require(msg.sender == governance, "!gov");
+    versions.push(version);
+
+    emit AddVersion(version);
+  }
+
 
   /// Anyone can add a vault to here, it will be indexed by their address
-  function add(string memory key, address vault) public {
-    bool added = vaults[msg.sender][key].add(vault);
+  function add(string memory version, address vault) public {
+    bool added = vaults[msg.sender][version].add(vault);
     if (added) { 
-      emit NewVault(msg.sender, key, vault);
+      emit NewVault(msg.sender, version, vault);
     }
   }
 
   /// Remove the vault from your index
-  function remove(string memory key, address vault) public {
-    bool removed = vaults[msg.sender][key].remove(vault);
+  function remove(string memory version, address vault) public {
+    bool removed = vaults[msg.sender][version].remove(vault);
     if (removed) { 
-      emit RemoveVault(msg.sender, key, vault); 
+      emit RemoveVault(msg.sender, version, vault); 
      }
   }
 
@@ -145,7 +155,7 @@ contract BadgerRegistryV2 {
     return addresses[key];
   }
 
-  // Utility function to add keys, NOTE: No guarantee that it will be properly used
+
   function addKey(string memory key) public {
     require(msg.sender == governance, "!gov");
     keys.push(key);
@@ -154,27 +164,27 @@ contract BadgerRegistryV2 {
   }
 
   //@dev Retrieve a list of all Vault Addresses from the given author
-  function fromAuthor(address author, string memory key) public view returns (address[] memory) {
-    uint256 length = vaults[author][key].length();
+  function fromAuthor(address author, string memory version) public view returns (address[] memory) {
+    uint256 length = vaults[author][version].length();
 
     address[] memory list = new address[](length);
     for (uint256 i = 0; i < length; i++) {
-      list[i] = vaults[author][key].at(i);
+      list[i] = vaults[author][version].at(i);
     }
     return list;
   }
 
   //@dev Retrieve a list of all Vaults and the basic Vault info
-  function fromAuthorVaults(address author, string memory key) public view returns (VaultInfo[] memory) {
-    uint256 length = vaults[author][key].length();
+  function fromAuthorVaults(address author, string memory version) public view returns (VaultInfo[] memory) {
+    uint256 length = vaults[author][version].length();
 
     VaultInfo[] memory vaultData = new VaultInfo[](length);
     for(uint x = 0; x < length; x++){
-      VaultView vault = VaultView(vaults[author][key].at(x));
+      VaultView vault = VaultView(vaults[author][version].at(x));
       StratInfo[] memory allStrats = new StratInfo[](0);
 
       VaultInfo memory data = VaultInfo({
-        at: vaults[author][key].at(x),
+        at: vaults[author][version].at(x),
         name: vault.name(),
         symbol: vault.symbol(),
         token: vault.token(),
@@ -193,12 +203,12 @@ contract BadgerRegistryV2 {
 
 
   //@dev Given the Vault, retrieve all the data as well as all data related to the strategies
-  function fromAuthorWithDetails(address author, string memory key) public view returns (VaultInfo[] memory) {
-    uint256 length = vaults[author][key].length();
+  function fromAuthorWithDetails(address author, string memory version) public view returns (VaultInfo[] memory) {
+    uint256 length = vaults[author][version].length();
     VaultInfo[] memory vaultData = new VaultInfo[](length);
     
     for(uint x = 0; x < length; x++){
-      VaultView vault = VaultView(vaults[author][key].at(x));
+      VaultView vault = VaultView(vaults[author][version].at(x));
 
       // TODO: Strat Info with real data
       uint stratCount = 0;
@@ -233,7 +243,7 @@ contract BadgerRegistryV2 {
       }
 
       VaultInfo memory data = VaultInfo({
-        at: vaults[author][key].at(x),
+        at: vaults[author][version].at(x),
         name: vault.name(),
         symbol: vault.symbol(),
         token: vault.token(),
@@ -253,12 +263,12 @@ contract BadgerRegistryV2 {
 
   //@dev Promote a vault to Production
   //@dev Promote just means indexed by the Governance Address
-  function promote(string memory key, address vault) public {
+  function promote(string memory version, address vault) public {
     require(msg.sender == governance, "!gov");
-    bool promoted = vaults[msg.sender][key].add(vault);
+    bool promoted = vaults[msg.sender][version].add(vault);
 
     if (promoted) { 
-      emit PromoteVault(msg.sender, key, vault);
+      emit PromoteVault(msg.sender, version, vault);
     }
   }
 }
