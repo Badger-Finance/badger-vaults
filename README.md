@@ -185,10 +185,6 @@ For security concerns, please visit [Bug Bounty](https://immunefi.com/bounty/bad
 
 Documentation [webpage](https://www.notion.so/Badger-V2-Vaults-and-Brownie-Mix-5f2de471539349869a9f63995e74f780).
 
-## Discussion
-
-For questions not covered in the docs, please visit [our Discord server](https://discord.gg/dwSdN9g6Mw).
-
 
 
 ## Registry Notes
